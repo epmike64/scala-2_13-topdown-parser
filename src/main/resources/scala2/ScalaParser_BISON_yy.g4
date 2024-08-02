@@ -1084,4 +1084,3 @@ star_grp65:
 	PACKAGE qualId star_grp65
 	| EMPTY
 	;
-
