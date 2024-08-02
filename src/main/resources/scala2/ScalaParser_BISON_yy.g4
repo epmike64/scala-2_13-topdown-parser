@@ -1,82 +1,5 @@
-//%token VARID
-//%token COLON
-//%token INT_LTR
-//%token ADD
-//%token PRIVATE
-//%token BOOL_LTR
-//%token EQ
-//%token VAR
-//%token COMMA
-//%token POUND
-//%token CATCH
-//%token RSQUARE
-//%token BoundVarid
-//%token RCURL
-//%token IF
-//%token EXCL
-//%token OBJECT
-//%token THROW
-//%token PACKAGE
-//%token LCURL
-//%token GH_COLON
-//%token NULL
-//%token IMPLICIT
-//%token FORSOME
-//%token CLASS
-//%token LT_DASH
-//%token EXTENDS
-//%token DO
-//%token ELSE
-//%token IMPORT
-//%token NL
-//%token WHILE
-//%token Scala
-//%token ABSTRACT
-//%token PROTECTED
-//%token DOT
-//%token TRY
-//%token CASE
-//%token LSQUARE
-//%token LPAREN
-//%token FINALLY
-//%token SEALED
-//%token RPAREN
-//%token RETURN
-//%token YIELD
-//%token SYMB_LTR
-//%token TRAIT
-//%token LT_COLON
-//%token FLOAT_LTR
-//%token MATCH
-//%token ID
-//%token LT_PERCENT
-//%token LAZY
-//%token SUB
-//%token TYPE
-//%token TILDE
-//%token STR_LTR
-//%token FINAL
-//%token AT
-//%token THIS
-//%token WITH
-//%token VAL
-//%token OVERRIDE
-//%token FAT_ARROW
-//%token MULT
-//%token NEW
-//%token PIPE
-//%token DEF
-//%token UNDERSCORE
-//%token FOR
-//%token CHR_LTR
-//%token SUPER
-//
-//%%
-grammar ScalaParser_BISON_yy;
 
-compilationUnit
-    : star_grp65 topStatSeq
-    ;
+grammar ScalaParser_BISON_yy;
 
 literal
     : qsn_SUB INT_LTR
@@ -240,7 +163,7 @@ argumentExprs
 
 args
     : qsn_exprs
-    | qsn_grp35 postfixExpr altgrp6
+    | qsn_grp35 postfixExpr qsn_altgrp6
     ;
 
 blockExpr
@@ -254,7 +177,7 @@ block
 
 blockStat
     : import_
-    | star_annotation altgrp7 def_
+    | star_annotation qsn_altgrp7 def_
     | star_annotation star_localModifier tmplDef
     | expr1
     ;
@@ -269,7 +192,7 @@ enumerators
     ;
 
 generator
-    : pattern1 LT_DASH expr altgrp10
+    : pattern1 LT_DASH expr star_altgrp10
     ;
 
 caseClauses
@@ -326,7 +249,7 @@ funTypeParamClause
     ;
 
 variantTypeParam
-    : star_annotation altgrp12 typeParam
+    : star_annotation qsn_altgrp12 typeParam
     ;
 
 typeParam
@@ -368,7 +291,7 @@ classParams
     ;
 
 classParam
-    : star_annotation star_modifier altgrp14 ID COLON paramType qsn_grp52
+    : star_annotation star_modifier qsn_altgrp14 ID COLON paramType qsn_grp52
     ;
 
 bindings
@@ -587,7 +510,9 @@ packageObject
     : PACKAGE OBJECT objectDef
     ;
 
-
+compilationUnit
+    : star_grp65 topStatSeq
+    ;
 
 
 qsn_SUB:
@@ -865,12 +790,14 @@ altgrp5:
 	classTemplate | templateBody
 	;
 
-altgrp6:
+qsn_altgrp6:
 	COLON | UNDERSCORE | MULT
+	| EMPTY
 	;
 
-altgrp7:
+qsn_altgrp7:
 	IMPLICIT | LAZY
+	| EMPTY
 	;
 
 altgrp8:
@@ -881,7 +808,12 @@ altgrp9:
 	bindings | altgrp8 COLON compoundType
 	;
 
-altgrp10:
+star_altgrp10:
+	star_altgrp10_ALT star_altgrp10
+	| EMPTY
+	;
+
+star_altgrp10_ALT:
 	guard_ | pattern1 EQ expr
 	;
 
@@ -889,16 +821,18 @@ altgrp11:
 	BoundVarid | UNDERSCORE | ID
 	;
 
-altgrp12:
+qsn_altgrp12:
 	ADD | SUB
+	| EMPTY
 	;
 
 altgrp13:
 	ID | UNDERSCORE
 	;
 
-altgrp14:
+qsn_altgrp14:
 	VAL | VAR
+	| EMPTY
 	;
 
 altgrp15:
@@ -1151,8 +1085,3 @@ star_grp65:
 	| EMPTY
 	;
 
-//%%
-//
-//int main() {
-//	return 0;
-//}
