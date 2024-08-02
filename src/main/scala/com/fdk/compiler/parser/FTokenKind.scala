@@ -159,5 +159,5 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case PIPE extends FTokenKind("PIPE", FTag.DEFAULT)
 	case DEF extends FTokenKind("DEF", FTag.DEFAULT)
 	case UNDERSCORE extends FTokenKind("UNDERSCORE", FTag.DEFAULT)
-
+	case LITERAL extends FTokenKind("LITERAL", FTag.DEFAULT)
 	case CHR_LTR extends FTokenKind("CHR_LTR", FTag.STRING)

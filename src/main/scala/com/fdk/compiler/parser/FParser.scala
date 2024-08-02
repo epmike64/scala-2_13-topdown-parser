@@ -79,6 +79,9 @@ class FParser(lexer: IFLexer) extends IFParser {
 		imp
 	}
 
+	/*
+		paramType:   type_  | '=>' type_  | type_ '*'
+	 */
 	def paramType(): Unit = {
 		token.kind match {
 			case FAT_ARROW => {
@@ -94,19 +97,39 @@ class FParser(lexer: IFLexer) extends IFParser {
 			}
 		}
 	}
+
+	def infixType(): Unit = {
+		token.kind match {
+			case LPAREN => {
+				nextTk()
+				_type()
+				while (token.kind != RPAREN) {
+					_type()
+					if (token.kind == COMMA) {
+						nextTk()
+						_type()
+					}
+				}
+				accept(RPAREN)
+			}
+			case _ => {
+				qualId()
+
+			}
+		}
+	}
+
 	/*
-	Type ::= FunctionArgTypes ‘=>’ Type  | InfixType [ExistentialClause]
-	FunctionArgTypes ::= InfixType   | ‘(’ [ ParamType {‘,’ ParamType } ] ‘)’
+		type_ : functionArgTypes '=>' type_ | infixType existentialClause?
 	 */
 	def _type(): Unit = {
 		token.kind match {
 			case LPAREN =>
 				nextTk()
-				if (token.kind != RPAREN) {
+				while (token.kind != RPAREN) {
 					paramType()
-					while (token.kind == COMMA) {
+					if (token.kind == COMMA) {
 						nextTk()
-						paramType()
 					}
 				}
 				accept(RPAREN)
@@ -120,11 +143,19 @@ class FParser(lexer: IFLexer) extends IFParser {
 
 	def typeParam(): Unit = {
 		token.kind match {
-			case UNDERSCORE => nextTk()
 			case IDENTIFIER => ident()
+			case UNDERSCORE => nextTk()
 		}
-		if(token.kind == LBRACKET){
-			typeParamClause()
+		if (token.kind == LBRACKET) {
+			nextTk()
+			if (token.kind != RBRACKET) {
+				variantTypeParam()
+				while (token.kind == COMMA) {
+					nextTk()
+					variantTypeParam()
+				}
+			}
+			accept(RBRACKET)
 		}
 		if (token.kind == LOWER_BOUND) {
 			nextTk()
@@ -139,7 +170,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			_type()
 		}
 	}
-	
+
 	def classQualifier(): Unit = {
 		accept(LBRACKET)
 		ident()
@@ -161,7 +192,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 				//Some(F.at(token.pos).ident(FName("this")))
 			}
 			case SUPER => {
-				nextTk() 
+				nextTk()
 				if (token.kind == LBRACKET) {
 					classQualifier()
 				}
@@ -188,14 +219,258 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(RBRACKET)
 		None
 	}
+	
+	/*
+	simplePattern
+				: '_'
+				| Varid
+				| literal
+				| stableId ('(' patterns? ')')?
+				| stableId '(' (patterns ',')? (Id '@')? '_' '*' ')'
+				| '(' patterns? ')'
+	 */
+	def simplePattern(): Unit = {
+		token.kind match {
+			case UNDERSCORE => nextTk()
+			case LITERAL => nextTk()
+			case IDENTIFIER => {
+				stableId()
+				if (token.kind == LPAREN) {
+					nextTk()
+					if (token.kind != RPAREN) {
+						patterns()
+					}
+					accept(RPAREN)
+				}
+			}
+		}
+	}
+	/*
+		enumerators : generator+
+    	generator: pattern1 '<-' expr (guard_ | pattern1 '=' expr)*
+    	pattern1: (BoundVarid | '_' | Id) ':' typePat | pattern2
+    	pattern2: Id ('@' pattern3)?| pattern3
+    	pattern3: simplePattern| simplePattern (Id NL? simplePattern)*
+    	simplePattern
+						 : '_'
+						 | Varid
+						 | literal
+						 | stableId ('(' patterns? ')')?
+						 | stableId '(' (patterns ',')? (Id '@')? '_' '*' ')'
+						 | '(' patterns? ')'
+						 
+	 */
+	def generator(): Unit = {
+		token.kind match {
+			case IDENTIFIER => {
+				ident()
+				token.kind match {
+					case COLON => {
+						nextTk()
+						_type()
+					}
+					case AT => {
+						nextTk()
+						simplePattern()
+					}
+					case _ => simplePattern()
+				}
+			}
+			case UNDERSCORE /*|BoundVarid*/ => {
+				nextTk()
+				accept(COLON)
+				_type()
+			}
+		}
+	}
+	def enumerators(): Unit = {
+		while (token.kind != RPAREN || token.kind != RBRACE) {
+			generator()
+		}
+	}
+	/*
+	expr1
+			 : 'if' '(' expr ')' NL* expr ('else' expr)?
+			 | 'while' '(' expr ')' NL* expr
+			 | 'try' expr ('catch' expr)? ('finally' expr)?
+			 | 'do' expr 'while' '(' expr ')'
+			 | 'for' ('(' enumerators ')' | '{' enumerators '}') 'yield'? expr
+			 | 'throw' expr
+			 | 'return' expr?
+			 | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
+			 | simpleExpr1 argumentExprs '=' expr
+			 | postfixExpr ascription?
+			 | postfixExpr 'match' '{' caseClauses '}'
+	 */
+	def expr1(): Unit = {
+		token.kind match {
+			case IF => {
+				accept(LPAREN)
+				expr()
+				accept(RBRACE)
+				expr()
+				if(token.kind == ELSE) {
+					nextTk()
+					expr()
+				}
+			}
+			case WHILE => {
+				accept(LPAREN)
+				expr()
+				accept(RBRACE)
+				expr()
+			}
+			case TRY => {
+				expr()
+				if(token.kind == CATCH) {
+					nextTk()
+					expr()
+				}
+				if(token.kind == FINALLY) {
+					nextTk()
+					expr()
+				}
+			}
+			case DO => {
+				expr()
+				accept(WHILE)
+				accept(LPAREN)
+				expr()
+				accept(RPAREN)
+			}
+			case FOR => {
+				if(token.kind == LPAREN) {
+					nextTk()
+					enumerators()
+					accept(RPAREN)
+				}
+				else {
+					accept(LBRACE)
+					enumerators()
+					accept(RBRACE)
+				}
+				if(token.kind == YIELD) {
+					nextTk()
+				}
+				expr()
+			}
+			case THROW => expr()
+			case RETURN => ???
+		}
+	}
+	/*  
+   	expr: (bindings | 'implicit'? Id | '_') '=>' expr | expr1
+			bindings: '(' binding (',' binding)* ')'
+    			binding: (Id | '_') (':' type_)?
+   	expr1:
+			 'if' '(' expr ')' NL* expr ('else' expr)?
+			 | 'while' '(' expr ')' NL* expr
+			 | 'try' expr ('catch' expr)? ('finally' expr)?
+			 | 'do' expr 'while' '(' expr ')'
+			 | 'for' ('(' enumerators ')' | '{' enumerators '}') 'yield'? expr
+			 | 'throw' expr
+			 | 'return' expr?
+			 | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
+			 | simpleExpr1 argumentExprs '=' expr
+			 | postfixExpr ascription?
+			 | postfixExpr 'match' '{' caseClauses '}'
+	*/
 
+	def expr(): Unit = {
+		while(token.kind == IDENTIFIER || token.kind == UNDERSCORE) {
+			nextTk()
+			if (token.kind == COLON) {
+				nextTk()
+				_type()
+			}
+		}
+		if(token.kind == FAT_ARROW){
+			nextTk()
+			expr()
+		}
+		else {
+			expr1()
+		}
+	}
+	/*
+		classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
+	 */
+	def classParam(): Unit = {
+		val mods = modifiersOpt()
+		token.kind match {
+			case VAR | VAL => nextTk()
+		}
+		ident()
+		accept(COLON)
+		paramType()
+		if (token.kind == EQ) {
+			nextTk()
+			expr()
+		}
+	}
+
+	/**
+	 * ClassDef ::= id [TypeParamClause] {Annotation} [AccessModifier] ClassParamClauses classTemplateOpt
+	 */
 	def classDef(isCase: Boolean): FTree = {
 		val startPos = token.pos
 		accept(CLASS)
 		val name = ident()
+		/*
+		typeParamClause: '[' variantTypeParam (',' variantTypeParam)* ']'
+		 */
 		if (token.kind == LBRACKET) {
-			typeParamClause()
+			nextTk()
+			variantTypeParam()
+			while (token.kind == COMMA) {
+				nextTk()
+				variantTypeParam()
+			}
+			accept(RBRACKET)
 		}
+		/*
+		accessModifier: ('private' | 'protected') accessQualifier?
+		 */
+		token.kind match {
+			case PRIVATE | PROTECTED =>
+				nextTk()
+				if (token.kind == LBRACKET) {
+					accessQualifier()
+				}
+		}
+		/*
+			classParamClauses: classParamClause* (NL? '(' 'implicit' classParams ')')?
+			classParamClause: NL? '(' classParams? ')'
+			classParams: classParam (',' classParam)*
+			classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
+		 */
+		if (token.kind == LPAREN) {
+			nextTk()
+			while (token.kind != RPAREN) {
+				classParam()
+				if (token.kind == COMMA) {
+					nextTk()
+					classParam()
+				}
+			}
+			accept(RPAREN)
+		}
+
+		if (token.kind == EXTENDS) {
+			nextTk()
+			if (token.kind == LBRACE) {
+				nextTk()
+				//earlyDefs()
+				accept(RBRACE)
+				accept(WITH)
+			}
+		}
+		if (token.kind == LPAREN) {//templateBody
+			nextTk()
+			
+			accept(RPAREN)
+		}
+
 		val cd = F.at(startPos).makeClassDecl()
 		endPosTable(cd) = token.pos
 		cd
@@ -227,7 +502,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 		accept(RBRACKET)
 	}
-	
+
 	def modifier(): Option[Int] = {
 
 		token.kind match
