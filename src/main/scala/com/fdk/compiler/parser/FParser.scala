@@ -213,6 +213,13 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(DOT)
 		accept(IDENTIFIER)
 	}
+
+	def stableIdRest(): Unit = {
+		while (token.kind == DOT && isTokenLaOneOf(1, IDENTIFIER)) {
+			next()
+			ident()
+		}
+	}
 	
 	def stableId(): Unit = {
 		if(isToken(IDENTIFIER)){
@@ -221,21 +228,16 @@ class FParser(lexer: IFLexer) extends IFParser {
 				if(isTokenLaOneOf(1, THIS, SUPER)){
 					skip(2)
 					stableId2()
-				}
-			} else {
-				return
+				} 
 			}
+			stableIdRest()
 			
 		} else if(isTokenOneOf(THIS, SUPER)){
 			next()
 			stableId2()
+			stableIdRest()
 		} else {
 			reportSyntaxError(token.pos, "expected", IDENTIFIER, THIS, SUPER)
-		}
-		
-		while (token.kind == DOT) {
-			next()
-			ident()
 		}
 	}
 
