@@ -120,7 +120,7 @@ enum FTreeTag:
 	/** Return statements, of type Return.
 	 */
 	case RETURN
-	,
+	
 
 	/** Throw statements of type Throw.
 	 */

@@ -3,25 +3,24 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.FToken
 
 trait IFLexer {
-	/**
-	 * Consume the next token.
-	 */
-	def nextToken(): FToken
 
+	def next: FToken
+	
+	def skip(n: Int): FToken
 	/**
 	 * Return current token.
 	 */
 	def token: FToken
+	
+	/**
+	 * Return token with given lookahead.
+	 */
+	def lookAhead(n: Int): FToken
 
 	/**
 	 * Return the last character position of the previous token.
 	 */
-	def prevToken: FToken
-
-	/**
-	 * Return token with given lookahead.
-	 */
-	def token(lookAhead: Int): FToken
+	def prev: FToken
 
 	/**
 	 * Return the position where a lexical error occurred;

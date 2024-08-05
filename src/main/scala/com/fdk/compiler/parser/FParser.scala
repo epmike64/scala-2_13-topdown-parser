@@ -15,30 +15,59 @@ class FParser(lexer: IFLexer) extends IFParser {
 	private[this] val F: FTreeMaker = new FTreeMaker()
 	private[this] val endPosTable: scala.collection.mutable.Map[FTree, Int] = scala.collection.mutable.Map()
 
-	private def nextTk(): Unit = {
-		token = lexer.nextToken()
+	def toP[T <: FTree](t: T): T = {t}
+	
+	def next(): Unit = {
+		token = lexer.next
 	}
-
-	def toP[T <: FTree](t: T): T = {
-		t
+	
+	def skip(n: Int): Unit = {
+		if(n == 1) next()
+		else if (n > 1) token = lexer.skip(n)
+		else throw new IllegalArgumentException("n must be positive")
 	}
-
+	
+	def lookAhead(n: Int): FToken = {
+		if(n == 0) token
+		else if(n > 0) lexer.lookAhead(n)
+		else throw new IllegalArgumentException("n must be positive")
+	}
 	/** If next input token matches given token, skip it, otherwise report
 	 * an error.
 	 */
-	private def accept(tk: FTokenKind): Unit = {
-		if token.kind == tk then nextTk()
+	def accept(tk: FTokenKind): Unit = {
+		if(token.kind == tk) next()
 		else {
 			setErrorEndPos(token.pos)
 			reportSyntaxError(token.pos, "expected", tk)
 		}
 	}
+	
+	def isTokenLa(kinds: FTokenKind*): Boolean = {
+		for(i <- 0 until kinds.length){
+			if(lexer.lookAhead(i).kind != kinds(i)) return false
+		}
+		true
+	}
+	
 
+	def isTokenLaOneOf(n: Int, kinds: FTokenKind*): Boolean = {
+		kinds.contains(lookAhead(n))
+	}
+	
+	def isToken(kind: FTokenKind): Boolean = {
+		token.kind == kind
+	}
+
+	def isTokenOneOf(kinds: FTokenKind*): Boolean = {
+		kinds.contains(token.kind)
+	}
+	
 	def setErrorEndPos(errPos: Int): Unit = {
 		//endPosTable.setErrorEndPos(errPos)
 	}
 
-	def reportSyntaxError(pos: Int, key: String, args: Any): Unit = {
+	def reportSyntaxError(pos: Int, key: String, kinds: FTokenKind*): Unit = {
 		//reporter.syntaxError(token.offset, msg)
 	}
 
@@ -55,7 +84,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		var t: FExpression = toP(F.at(token.pos).ident(ident()))
 		while (token.kind == DOT) {
 			val pos = token.pos
-			nextTk()
+			next()
 			t = toP(F.at(token.pos).select(t, ident()))
 		}
 		t
@@ -63,7 +92,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 
 	def packageDecl(): FPackageDecl = {
 		val startPos = token.pos
-		nextTk()
+		next()
 		val pid = qualId()
 		val pd = F.at(startPos).packageDecl(pid)
 		endPosTable(pd) = token.pos
@@ -72,7 +101,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 
 	def importDecl(): FImport = {
 		val startPos = token.pos
-		nextTk()
+		next()
 		val id = qualId()
 		val imp = F.at(startPos).makeImport(id)
 		endPosTable(imp) = token.pos
@@ -85,14 +114,14 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def paramType(): Unit = {
 		token.kind match {
 			case FAT_ARROW => {
-				nextTk()
+				next()
 				_type()
 			}
 			case _ => {
 				_type()
-				nextTk()
+				next()
 				token.kind match {
-					case STAR => nextTk()
+					case STAR => next()
 				}
 			}
 		}
@@ -101,12 +130,12 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def infixType(): Unit = {
 		token.kind match {
 			case LPAREN => {
-				nextTk()
+				next()
 				_type()
 				while (token.kind != RPAREN) {
 					_type()
 					if (token.kind == COMMA) {
-						nextTk()
+						next()
 						_type()
 					}
 				}
@@ -125,16 +154,16 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def _type(): Unit = {
 		token.kind match {
 			case LPAREN =>
-				nextTk()
+				next()
 				while (token.kind != RPAREN) {
 					paramType()
 					if (token.kind == COMMA) {
-						nextTk()
+						next()
 					}
 				}
 				accept(RPAREN)
 				if (token.kind == FAT_ARROW) {
-					nextTk()
+					next()
 					_type()
 				}
 			case _ => infixType()
@@ -144,29 +173,29 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def typeParam(): Unit = {
 		token.kind match {
 			case IDENTIFIER => ident()
-			case UNDERSCORE => nextTk()
+			case UNDERSCORE => next()
 		}
 		if (token.kind == LBRACKET) {
-			nextTk()
+			next()
 			if (token.kind != RBRACKET) {
 				variantTypeParam()
 				while (token.kind == COMMA) {
-					nextTk()
+					next()
 					variantTypeParam()
 				}
 			}
 			accept(RBRACKET)
 		}
 		if (token.kind == LOWER_BOUND) {
-			nextTk()
+			next()
 			_type()
 		}
 		if (token.kind == UPPER_BOUND) {
-			nextTk()
+			next()
 			_type()
 		}
 		if (token.kind == COLON) {
-			nextTk() //Context bound
+			next() //Context bound
 			_type()
 		}
 	}
@@ -176,35 +205,43 @@ class FParser(lexer: IFLexer) extends IFParser {
 		ident()
 		accept(RBRACKET)
 	}
-
+	
+	def stableId2(): Unit = {
+		if (token.kind == LBRACKET) {
+			classQualifier()
+		}
+		accept(DOT)
+		accept(IDENTIFIER)
+	}
+	
 	def stableId(): Unit = {
-		token.kind match {
-			case IDENTIFIER => {
-				ident()
-				if (token.kind == DOT) {
-					nextTk()
-					stableId()
+		if(isToken(IDENTIFIER)){
+			ident()
+			if (token.kind == DOT) {
+				if(isTokenLaOneOf(1, THIS, SUPER)){
+					skip(2)
+					stableId2()
 				}
+			} else {
+				return
 			}
-
-			case THIS => {
-				nextTk()
-				//Some(F.at(token.pos).ident(FName("this")))
-			}
-			case SUPER => {
-				nextTk()
-				if (token.kind == LBRACKET) {
-					classQualifier()
-				}
-				accept(DOT)
-				ident()
-			}
+			
+		} else if(isTokenOneOf(THIS, SUPER)){
+			next()
+			stableId2()
+		} else {
+			reportSyntaxError(token.pos, "expected", IDENTIFIER, THIS, SUPER)
+		}
+		
+		while (token.kind == DOT) {
+			next()
+			ident()
 		}
 	}
 
 	def variantTypeParam(): Unit = {
 		token.kind match {
-			case PLUS | SUB => nextTk()
+			case PLUS | SUB => next()
 		}
 		typeParam()
 	}
@@ -213,13 +250,30 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(LBRACKET)
 		variantTypeParam()
 		while (token.kind == COMMA) {
-			nextTk()
+			next()
 			variantTypeParam()
 		}
 		accept(RBRACKET)
 		None
 	}
-	
+
+	def pattern(): Unit = {
+		//pattern1()
+	}
+	def patterns(): Unit = {
+		if (token.kind == UNDERSCORE) {
+			next()
+			accept(STAR)
+		}
+		else {
+			pattern()
+			while (token.kind == COMMA) {
+				next()
+				patterns()
+			}
+		}
+	}
+
 	/*
 	simplePattern
 				: '_'
@@ -231,12 +285,12 @@ class FParser(lexer: IFLexer) extends IFParser {
 	 */
 	def simplePattern(): Unit = {
 		token.kind match {
-			case UNDERSCORE => nextTk()
-			case LITERAL => nextTk()
+			case UNDERSCORE => next()
+			case LITERAL => next()
 			case IDENTIFIER => {
 				stableId()
 				if (token.kind == LPAREN) {
-					nextTk()
+					next()
 					if (token.kind != RPAREN) {
 						patterns()
 					}
@@ -245,13 +299,14 @@ class FParser(lexer: IFLexer) extends IFParser {
 			}
 		}
 	}
+
 	/*
 		enumerators : generator+
-    	generator: pattern1 '<-' expr (guard_ | pattern1 '=' expr)*
-    	pattern1: (BoundVarid | '_' | Id) ':' typePat | pattern2
-    	pattern2: Id ('@' pattern3)?| pattern3
-    	pattern3: simplePattern| simplePattern (Id NL? simplePattern)*
-    	simplePattern
+		 generator: pattern1 '<-' expr (guard_ | pattern1 '=' expr)*
+		 pattern1: (BoundVarid | '_' | Id) ':' typePat | pattern2
+		 pattern2: Id ('@' pattern3)?| pattern3
+		 pattern3: simplePattern| simplePattern (Id NL? simplePattern)*
+		 simplePattern
 						 : '_'
 						 | Varid
 						 | literal
@@ -266,28 +321,30 @@ class FParser(lexer: IFLexer) extends IFParser {
 				ident()
 				token.kind match {
 					case COLON => {
-						nextTk()
+						next()
 						_type()
 					}
 					case AT => {
-						nextTk()
+						next()
 						simplePattern()
 					}
 					case _ => simplePattern()
 				}
 			}
 			case UNDERSCORE /*|BoundVarid*/ => {
-				nextTk()
+				next()
 				accept(COLON)
 				_type()
 			}
 		}
 	}
+
 	def enumerators(): Unit = {
 		while (token.kind != RPAREN || token.kind != RBRACE) {
 			generator()
 		}
 	}
+
 	/*
 	expr1
 			 : 'if' '(' expr ')' NL* expr ('else' expr)?
@@ -309,8 +366,8 @@ class FParser(lexer: IFLexer) extends IFParser {
 				expr()
 				accept(RBRACE)
 				expr()
-				if(token.kind == ELSE) {
-					nextTk()
+				if (token.kind == ELSE) {
+					next()
 					expr()
 				}
 			}
@@ -322,12 +379,12 @@ class FParser(lexer: IFLexer) extends IFParser {
 			}
 			case TRY => {
 				expr()
-				if(token.kind == CATCH) {
-					nextTk()
+				if (token.kind == CATCH) {
+					next()
 					expr()
 				}
-				if(token.kind == FINALLY) {
-					nextTk()
+				if (token.kind == FINALLY) {
+					next()
 					expr()
 				}
 			}
@@ -339,8 +396,8 @@ class FParser(lexer: IFLexer) extends IFParser {
 				accept(RPAREN)
 			}
 			case FOR => {
-				if(token.kind == LPAREN) {
-					nextTk()
+				if (token.kind == LPAREN) {
+					next()
 					enumerators()
 					accept(RPAREN)
 				}
@@ -349,8 +406,8 @@ class FParser(lexer: IFLexer) extends IFParser {
 					enumerators()
 					accept(RBRACE)
 				}
-				if(token.kind == YIELD) {
-					nextTk()
+				if (token.kind == YIELD) {
+					next()
 				}
 				expr()
 			}
@@ -359,10 +416,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 	/*  
-   	expr: (bindings | 'implicit'? Id | '_') '=>' expr | expr1
+		expr: (bindings | 'implicit'? Id | '_') '=>' expr | expr1
 			bindings: '(' binding (',' binding)* ')'
-    			binding: (Id | '_') (':' type_)?
-   	expr1:
+				 binding: (Id | '_') (':' type_)?
+		expr1:
 			 'if' '(' expr ')' NL* expr ('else' expr)?
 			 | 'while' '(' expr ')' NL* expr
 			 | 'try' expr ('catch' expr)? ('finally' expr)?
@@ -377,34 +434,35 @@ class FParser(lexer: IFLexer) extends IFParser {
 	*/
 
 	def expr(): Unit = {
-		while(token.kind == IDENTIFIER || token.kind == UNDERSCORE) {
-			nextTk()
+		while (token.kind == IDENTIFIER || token.kind == UNDERSCORE) {
+			next()
 			if (token.kind == COLON) {
-				nextTk()
+				next()
 				_type()
 			}
 		}
-		if(token.kind == FAT_ARROW){
-			nextTk()
+		if (token.kind == FAT_ARROW) {
+			next()
 			expr()
 		}
 		else {
 			expr1()
 		}
 	}
+
 	/*
 		classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
 	 */
 	def classParam(): Unit = {
 		val mods = modifiersOpt()
 		token.kind match {
-			case VAR | VAL => nextTk()
+			case VAR | VAL => next()
 		}
 		ident()
 		accept(COLON)
 		paramType()
 		if (token.kind == EQ) {
-			nextTk()
+			next()
 			expr()
 		}
 	}
@@ -420,10 +478,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 		typeParamClause: '[' variantTypeParam (',' variantTypeParam)* ']'
 		 */
 		if (token.kind == LBRACKET) {
-			nextTk()
+			next()
 			variantTypeParam()
 			while (token.kind == COMMA) {
-				nextTk()
+				next()
 				variantTypeParam()
 			}
 			accept(RBRACKET)
@@ -433,7 +491,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		 */
 		token.kind match {
 			case PRIVATE | PROTECTED =>
-				nextTk()
+				next()
 				if (token.kind == LBRACKET) {
 					accessQualifier()
 				}
@@ -445,11 +503,11 @@ class FParser(lexer: IFLexer) extends IFParser {
 			classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
 		 */
 		if (token.kind == LPAREN) {
-			nextTk()
+			next()
 			while (token.kind != RPAREN) {
 				classParam()
 				if (token.kind == COMMA) {
-					nextTk()
+					next()
 					classParam()
 				}
 			}
@@ -457,17 +515,17 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 
 		if (token.kind == EXTENDS) {
-			nextTk()
+			next()
 			if (token.kind == LBRACE) {
-				nextTk()
+				next()
 				//earlyDefs()
 				accept(RBRACE)
 				accept(WITH)
 			}
 		}
-		if (token.kind == LPAREN) {//templateBody
-			nextTk()
-			
+		if (token.kind == LPAREN) { //templateBody
+			next()
+
 			accept(RPAREN)
 		}
 
@@ -498,7 +556,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(LBRACKET)
 		token.kind match {
 			case IDENTIFIER => ident()
-			case THIS => nextTk()
+			case THIS => next()
 		}
 		accept(RBRACKET)
 	}
@@ -508,11 +566,11 @@ class FParser(lexer: IFLexer) extends IFParser {
 		token.kind match
 
 			case ABSTRACT | FINAL | SEALED | IMPLICIT | LAZY | OVERRIDE =>
-				nextTk()
+				next()
 				Some(1)
 
 			case PRIVATE | PROTECTED =>
-				nextTk()
+				next()
 				if (token.kind == LBRACKET) {
 					accessQualifier()
 				}
@@ -538,7 +596,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def tmplDef(mods: FModifiers): FTree = {
 		token.kind match {
 			case CASE =>
-				nextTk()
+				next()
 				token.kind match {
 					case CLASS => classDef(true)
 					case OBJECT => objectDef(true)

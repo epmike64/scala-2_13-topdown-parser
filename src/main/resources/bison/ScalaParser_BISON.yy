@@ -1,5 +1,94 @@
+%token NULL
+%token VAR
+%token COLON
+%token STR_LTR
+%token NEW
+%token DO
+%token ID
+%token GH_COLON
+%token THROW
+%token TYPE
+%token VARID
+%token DEF
+%token MULT
+%token PRIVATE
+%token TILDE
+%token EQ
+%token SUPER
+%token FLOAT_LTR
+%token IF
+%token DOT
+%token LCURL
+%token EXCL
+%token TRY
+%token FINALLY
+%token THIS
+%token BOOL_LTR
+%token FINAL
+%token LT_DASH
+%token WITH
+%token PIPE
+%token FOR
+%token LAZY
+%token RSQUARE
+%token SUB
+%token PACKAGE
+%token OVERRIDE
+%token LT_PERCENT
+%token ABSTRACT
+%token BoundVarid
+%token POUND
+%token ELSE
+%token CHR_LTR
+%token COMMA
+%token PROTECTED
+%token INT_LTR
+%token VAL
+%token Scala
+%token CLASS
+%token CASE
+%token SEALED
+%token FORSOME
+%token UNDERSCORE
+%token AT
+%token ADD
+%token RPAREN
+%token LSQUARE
+%token CATCH
+%token FAT_ARROW
+%token EXTENDS
+%token RETURN
+%token IMPLICIT
+%token MATCH
+%token SYMB_LTR
+%token LT_COLON
+%token TRAIT
+%token LPAREN
+%token YIELD
+%token IMPORT
+%token RCURL
+%token WHILE
+%token OBJECT
+%token EOF
+%token DOT_IMPRT
+%token DOT_TYPE
+%token DOT_ID
+%token DOT_altgrp1
+%token EXTENDS_tmpl
+%token EXTENDS_body
+%token COMMA1
+%token M1 M2
+%%
 
-grammar ScalaParser_BISON_yy;
+compilationUnit
+    : topStatSeq
+    ;
+
+topStatSeq
+    : PACKAGE qualId topStatSeq
+	| topStat topStatSeq
+	| EOF
+    ;
 
 literal
     : qsn_SUB INT_LTR
@@ -20,10 +109,15 @@ ids
     ;
 
 stableId
-    : ID
-    | stableId DOT ID
-    | qsn_grp22 altgrp1
+    : ID stableIdRest
+    | ID DOT altgrp1 stableIdRest
+    | altgrp1 stableIdRest
     ;
+
+stableIdRest
+	: DOT ID stableIdRest
+	| %empty
+	;
 
 classQualifier
     : LSQUARE ID RSQUARE
@@ -62,10 +156,15 @@ annotType
     ;
 
 simpleType
-    : simpleType typeArgs
-    | simpleType POUND ID
-    | stableId qsn_grp27
-    | LPAREN types RPAREN
+     : stableId DOT_TYPE simpleTypeRest
+     | stableId simpleTypeRest
+     | LPAREN types RPAREN simpleTypeRest
+     ;
+
+simpleTypeRest
+    : typeArgs simpleTypeRest
+    | POUND ID simpleTypeRest
+    | %empty
     ;
 
 typeArgs
@@ -73,11 +172,16 @@ typeArgs
     ;
 
 types
-    : type_ star_grp28
+    : type_  typesRest
     ;
 
+typesRest:
+	COMMA1 type_ typesRest
+	| %empty
+	;
+
 refinement
-    : qsn_NL LCURL plus_refineStat RCURL
+    :  LCURL plus_refineStat RCURL
     ;
 
 refineStat
@@ -101,8 +205,8 @@ expr
     ;
 
 expr1
-    : IF LPAREN expr RPAREN star_NL expr qsn_grp29
-    | WHILE LPAREN expr RPAREN star_NL expr
+    : IF LPAREN expr RPAREN  expr qsn_grp29
+    | WHILE LPAREN expr RPAREN  expr
     | TRY expr qsn_grp30 qsn_grp31
     | DO expr WHILE LPAREN expr RPAREN
     | FOR altgrp3 qsn_YIELD expr
@@ -122,12 +226,16 @@ prefixDef
     ;
 
 postfixExpr
-    : infixExpr qsn_ID star_grp33 qsn_NL
+    : infixExpr M1 qsn_ID M2 star_grp33
     ;
 
 infixExpr
-    : prefixExpr
-    | infixExpr ID qsn_NL infixExpr
+    : prefixExpr infixExprRest
+    ;
+
+infixExprRest
+    : ID infixExpr infixExprRest
+    | %empty
     ;
 
 prefixExpr
@@ -140,15 +248,19 @@ simpleExpr
     ;
 
 simpleExpr1
-    : literal
-    | stableId
-    | UNDERSCORE
-    | LPAREN qsn_exprs RPAREN
-    | simpleExpr DOT ID
-    | simpleExpr1 qsn_UNDERSCORE DOT ID
-    | simpleExpr typeArgs
-    | simpleExpr1 qsn_UNDERSCORE typeArgs
-    | simpleExpr1 argumentExprs
+    : literal simpleExpr1Rest
+    | stableId simpleExpr1Rest
+    | UNDERSCORE simpleExpr1Rest
+    | LPAREN qsn_exprs RPAREN simpleExpr1Rest
+    | simpleExpr DOT_ID simpleExpr1Rest
+    | simpleExpr typeArgs simpleExpr1Rest
+    ;
+
+simpleExpr1Rest
+    :  qsn_UNDERSCORE DOT ID simpleExpr1Rest
+    |  qsn_UNDERSCORE typeArgs simpleExpr1Rest
+    |  argumentExprs simpleExpr1Rest
+    |  %empty
     ;
 
 exprs
@@ -158,7 +270,7 @@ exprs
 argumentExprs
     : LPAREN args RPAREN
     | LCURL args RCURL
-    | qsn_NL blockExpr
+    |  blockExpr
     ;
 
 args
@@ -261,7 +373,7 @@ paramClauses
     ;
 
 paramClause
-    : qsn_NL LPAREN qsn_params RPAREN
+    : LPAREN qsn_params RPAREN
     ;
 
 params
@@ -283,7 +395,7 @@ classParamClauses
     ;
 
 classParamClause
-    : qsn_NL LPAREN qsn_classParams RPAREN
+    :  LPAREN qsn_classParams RPAREN
     ;
 
 classParams
@@ -333,7 +445,7 @@ constrAnnotation
     ;
 
 templateBody
-    : qsn_NL LCURL qsn_selfType plus_templateStat RCURL
+    :  LCURL qsn_selfType plus_templateStat RCURL
     ;
 
 templateStat
@@ -368,7 +480,7 @@ dcl
     : VAL valDcl
     | VAR varDcl
     | DEF funDcl
-    | TYPE star_NL typeDcl
+    | TYPE  typeDcl
     ;
 
 valDcl
@@ -399,7 +511,7 @@ patVarDef
 def_
     : patVarDef
     | DEF funDef
-    | TYPE star_NL typeDef
+    | TYPE  typeDef
     | tmplDef
     ;
 
@@ -414,7 +526,7 @@ varDef
 
 funDef
     : funSig qsn_grp56 EQ expr
-    | funSig qsn_NL LCURL block RCURL
+    | funSig  LCURL block RCURL
     | THIS paramClause paramClauses altgrp19
     ;
 
@@ -441,13 +553,17 @@ objectDef
     ;
 
 classTemplateOpt
-    : EXTENDS classTemplate
-    | qsn_grp63
+    : EXTENDS_tmpl classTemplate
+    | EXTENDS_body templateBody
+    | templateBody
+    | %empty
     ;
 
 traitTemplateOpt
-    : EXTENDS traitTemplate
-    | qsn_grp63
+    : EXTENDS_tmpl traitTemplate
+    | EXTENDS_body templateBody
+    | templateBody
+    | %empty
     ;
 
 classTemplate
@@ -491,8 +607,12 @@ selfInvocation
     : THIS plus_argumentExprs
     ;
 
-topStatSeq
-    : plus_topStat
+packaging
+    : PACKAGE qualId  LCURL topStatSeq RCURL
+    ;
+
+packageObject
+    : PACKAGE OBJECT objectDef
     ;
 
 topStat
@@ -502,37 +622,27 @@ topStat
     | packageObject
     ;
 
-packaging
-    : PACKAGE qualId qsn_NL LCURL topStatSeq RCURL
-    ;
-
-packageObject
-    : PACKAGE OBJECT objectDef
-    ;
-
-compilationUnit
-    : star_grp65 topStatSeq
-    ;
-
+//////////////////////////////////////////
+////////////////////////////////////////////
 
 qsn_SUB:
 	SUB
-	| EMPTY
+	| %empty
 	;
 
 qsn_classQualifier:
 	classQualifier
-	| EMPTY
+	| %empty
 	;
 
 qsn_existentialClause:
 	existentialClause
-	| EMPTY
+	| %empty
 	;
 
 star_existentialDcl:
 	existentialDcl star_existentialDcl
-	| EMPTY
+	| %empty
 	;
 
 plus_existentialDcl:
@@ -541,22 +651,17 @@ plus_existentialDcl:
 
 qsn_refinement:
 	refinement
-	| EMPTY
+	| %empty
 	;
 
 star_annotation:
 	annotation star_annotation
-	| EMPTY
-	;
-
-qsn_NL:
-	NL
-	| EMPTY
+	| %empty
 	;
 
 star_refineStat:
 	refineStat star_refineStat
-	| EMPTY
+	| %empty
 	;
 
 plus_refineStat:
@@ -569,52 +674,47 @@ plus_annotation:
 
 qsn_IMPLICIT:
 	IMPLICIT
-	| EMPTY
-	;
-
-star_NL:
-	NL star_NL
-	| EMPTY
+	| %empty
 	;
 
 qsn_YIELD:
 	YIELD
-	| EMPTY
+	| %empty
 	;
 
 qsn_expr:
 	expr
-	| EMPTY
+	| %empty
 	;
 
 qsn_UNDERSCORE:
 	UNDERSCORE
-	| EMPTY
+	| %empty
 	;
 
 qsn_ascription:
 	ascription
-	| EMPTY
+	| %empty
 	;
 
 qsn_ID:
 	ID
-	| EMPTY
+	| %empty
 	;
 
 qsn_prefixDef:
 	prefixDef
-	| EMPTY
+	| %empty
 	;
 
 qsn_exprs:
 	exprs
-	| EMPTY
+	| %empty
 	;
 
 star_blockStat:
 	blockStat star_blockStat
-	| EMPTY
+	| %empty
 	;
 
 plus_blockStat:
@@ -623,17 +723,17 @@ plus_blockStat:
 
 qsn_resultExpr:
 	resultExpr
-	| EMPTY
+	| %empty
 	;
 
 star_localModifier:
 	localModifier star_localModifier
-	| EMPTY
+	| %empty
 	;
 
 star_generator:
 	generator star_generator
-	| EMPTY
+	| %empty
 	;
 
 plus_generator:
@@ -642,7 +742,7 @@ plus_generator:
 
 star_caseClause:
 	caseClause star_caseClause
-	| EMPTY
+	| %empty
 	;
 
 plus_caseClause:
@@ -651,62 +751,62 @@ plus_caseClause:
 
 qsn_guard_:
 	guard_
-	| EMPTY
+	| %empty
 	;
 
 qsn_patterns:
 	patterns
-	| EMPTY
+	| %empty
 	;
 
 qsn_typeParamClause:
 	typeParamClause
-	| EMPTY
+	| %empty
 	;
 
 star_paramClause:
 	paramClause star_paramClause
-	| EMPTY
+	| %empty
 	;
 
 qsn_params:
 	params
-	| EMPTY
+	| %empty
 	;
 
 star_classParamClause:
 	classParamClause star_classParamClause
-	| EMPTY
+	| %empty
 	;
 
 qsn_classParams:
 	classParams
-	| EMPTY
+	| %empty
 	;
 
 star_modifier:
 	modifier star_modifier
-	| EMPTY
+	| %empty
 	;
 
 qsn_accessQualifier:
 	accessQualifier
-	| EMPTY
+	| %empty
 	;
 
 star_argumentExprs:
 	argumentExprs star_argumentExprs
-	| EMPTY
+	| %empty
 	;
 
 qsn_selfType:
 	selfType
-	| EMPTY
+	| %empty
 	;
 
 star_templateStat:
 	templateStat star_templateStat
-	| EMPTY
+	| %empty
 	;
 
 plus_templateStat:
@@ -715,42 +815,37 @@ plus_templateStat:
 
 qsn_funTypeParamClause:
 	funTypeParamClause
-	| EMPTY
+	| %empty
 	;
 
 qsn_CASE:
 	CASE
-	| EMPTY
+	| %empty
 	;
 
 star_constrAnnotation:
 	constrAnnotation star_constrAnnotation
-	| EMPTY
+	| %empty
 	;
 
 qsn_accessModifier:
 	accessModifier
-	| EMPTY
-	;
-
-qsn_EXTENDS:
-	EXTENDS
-	| EMPTY
+	| %empty
 	;
 
 qsn_earlyDefs:
 	earlyDefs
-	| EMPTY
+	| %empty
 	;
 
 qsn_templateBody:
 	templateBody
-	| EMPTY
+	| %empty
 	;
 
 star_earlyDef:
 	earlyDef star_earlyDef
-	| EMPTY
+	| %empty
 	;
 
 plus_earlyDef:
@@ -759,15 +854,6 @@ plus_earlyDef:
 
 plus_argumentExprs:
 	argumentExprs star_argumentExprs
-	;
-
-star_topStat:
-	topStat star_topStat
-	| EMPTY
-	;
-
-plus_topStat:
-	topStat star_topStat
 	;
 
 altgrp1:
@@ -792,12 +878,12 @@ altgrp5:
 
 qsn_altgrp6:
 	COLON | UNDERSCORE | MULT
-	| EMPTY
+	| %empty
 	;
 
 qsn_altgrp7:
 	IMPLICIT | LAZY
-	| EMPTY
+	| %empty
 	;
 
 altgrp8:
@@ -810,7 +896,7 @@ altgrp9:
 
 star_altgrp10:
 	star_altgrp10_ALT star_altgrp10
-	| EMPTY
+	| %empty
 	;
 
 star_altgrp10_ALT:
@@ -823,7 +909,7 @@ altgrp11:
 
 qsn_altgrp12:
 	ADD | SUB
-	| EMPTY
+	| %empty
 	;
 
 altgrp13:
@@ -832,7 +918,7 @@ altgrp13:
 
 qsn_altgrp14:
 	VAL | VAR
-	| EMPTY
+	| %empty
 	;
 
 altgrp15:
@@ -844,7 +930,7 @@ altgrp16:
 	;
 
 altgrp17:
-	ID | UNDERSCORE | importSelectors
+	UNDERSCORE | importSelectors
 	;
 
 altgrp18:
@@ -852,235 +938,222 @@ altgrp18:
 	;
 
 altgrp19:
-	EQ constrExpr | qsn_NL constrBlock
+	EQ constrExpr |  constrBlock
 	;
 
 star_grp20:
 	DOT ID star_grp20
-	| EMPTY
+	| %empty
 	;
 
 star_grp21:
 	COMMA ID star_grp21
-	| EMPTY
-	;
-
-qsn_grp22:
-	ID DOT
-	| EMPTY
+	| %empty
 	;
 
 star_grp23:
 	COMMA paramType star_grp23
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp24:
 	paramType star_grp23
-	| EMPTY
+	| %empty
 	;
 
 star_grp25:
 	ID compoundType star_grp25
-	| EMPTY
+	| %empty
 	;
 
 star_grp26:
 	WITH annotType star_grp26
-	| EMPTY
+	| %empty
 	;
 
-qsn_grp27:
-	DOT TYPE
-	| EMPTY
-	;
 
-star_grp28:
-	COMMA type_ star_grp28
-	| EMPTY
-	;
+
+
 
 qsn_grp29:
 	ELSE expr
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp30:
 	CATCH expr
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp31:
 	FINALLY expr
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp32:
 	altgrp4 DOT
-	| EMPTY
+	| %empty
 	;
 
 star_grp33:
 	prefixDef simpleExpr1 star_grp33
-	| EMPTY
+	| %empty
 	;
 
 star_grp34:
 	COMMA expr star_grp34
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp35:
 	exprs COMMA
-	| EMPTY
+	| %empty
 	;
 
 star_grp36:
 	PIPE pattern1 star_grp36
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp37:
 	AT pattern3
-	| EMPTY
+	| %empty
 	;
 
 star_grp38:
-	ID qsn_NL simplePattern star_grp38
-	| EMPTY
+	ID  simplePattern star_grp38
+	| %empty
 	;
 
 qsn_grp39:
 	LPAREN qsn_patterns RPAREN
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp40:
 	patterns COMMA
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp41:
 	ID AT
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp42:
 	COMMA patterns
-	| EMPTY
+	| %empty
 	;
 
 star_grp43:
 	COMMA variantTypeParam star_grp43
-	| EMPTY
+	| %empty
 	;
 
 star_grp44:
 	COMMA typeParam star_grp44
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp45:
 	GH_COLON type_
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp46:
 	LT_COLON type_
-	| EMPTY
+	| %empty
 	;
 
 star_grp47:
 	LT_PERCENT type_ star_grp47
-	| EMPTY
+	| %empty
 	;
 
 star_grp48:
 	COLON type_ star_grp48
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp49:
-	qsn_NL LPAREN IMPLICIT params RPAREN
-	| EMPTY
+	 LPAREN IMPLICIT params RPAREN
+	| %empty
 	;
 
 star_grp50:
 	COMMA param star_grp50
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp51:
 	COLON paramType
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp52:
 	EQ expr
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp53:
-	qsn_NL LPAREN IMPLICIT classParams RPAREN
-	| EMPTY
+	 LPAREN IMPLICIT classParams RPAREN
+	| %empty
 	;
 
 star_grp54:
 	COMMA classParam star_grp54
-	| EMPTY
+	| %empty
 	;
 
 star_grp55:
 	COMMA binding star_grp55
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp56:
 	COLON type_
-	| EMPTY
+	| %empty
 	;
 
 star_grp57:
-	annotation qsn_NL star_grp57
-	| EMPTY
+	annotation  star_grp57
+	| %empty
 	;
 
 star_grp58:
 	COMMA importExpr star_grp58
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp59:
-	DOT altgrp17
-	| EMPTY
+	DOT_IMPRT altgrp17
+	| %empty
 	;
 
 star_grp60:
 	importSelector COMMA star_grp60
-	| EMPTY
+	| %empty
 	;
 
 qsn_grp61:
 	FAT_ARROW altgrp13
-	| EMPTY
+	| %empty
 	;
 
 star_grp62:
 	COMMA pattern2 star_grp62
-	| EMPTY
+	| %empty
 	;
 
-qsn_grp63:
-	qsn_EXTENDS templateBody
-	| EMPTY
-	;
+
 
 star_grp64:
 	blockStat star_grp64
-	| EMPTY
+	| %empty
 	;
 
-star_grp65:
-	PACKAGE qualId star_grp65
-	| EMPTY
-	;
+%%
+
+int main() {
+	return 0;
+}
