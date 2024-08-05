@@ -127,49 +127,46 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 
+	def annotType():Unit = {
+		simpleType()
+		while (token.kind == AT) {
+			next()
+			simpleType()
+		}
+	}
+	
+	def compoundType(): Unit = {
+		annotType()
+		while (token.kind == WITH) {
+			next()
+			annotType()
+		}
+	}
+	
 	def infixType(): Unit = {
-		token.kind match {
-			case LPAREN => {
-				next()
-				_type()
-				while (token.kind != RPAREN) {
-					_type()
-					if (token.kind == COMMA) {
-						next()
-						_type()
-					}
-				}
-				accept(RPAREN)
-			}
-			case _ => {
-				qualId()
-
-			}
+		compoundType()
+		while (token.kind == IDENTIFIER) {
+			next()
+			compoundType()
 		}
 	}
-
-	/*
-		type_ : functionArgTypes '=>' type_ | infixType existentialClause?
-	 */
-	def _type(): Unit = {
-		token.kind match {
-			case LPAREN =>
-				next()
-				while (token.kind != RPAREN) {
-					paramType()
-					if (token.kind == COMMA) {
-						next()
-					}
-				}
-				accept(RPAREN)
-				if (token.kind == FAT_ARROW) {
+	
+	def _type():Unit = {
+		if(isToken(LPAREN)){
+			next()
+			if(!isToken(RPAREN)){
+				paramType()
+				while (isToken(COMMA)){
 					next()
-					_type()
+					paramType()
 				}
-			case _ => infixType()
+			}
+			accept(RPAREN)
+		} else {
+			//infixType
 		}
 	}
-
+	
 	def typeParam(): Unit = {
 		token.kind match {
 			case IDENTIFIER => ident()
@@ -200,6 +197,35 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 
+	def types():Unit = {
+		_type()
+		while (token.kind == COMMA) {
+			next()
+			_type()
+		}
+	}
+	
+	def simpleType(): Unit = {
+		if(isToken(LPAREN)){
+			next()
+			types()
+			accept(RPAREN)
+		} else {
+			stableId()
+			if(isToken(POUND)){
+				next()
+				accept(IDENTIFIER)
+			} else if(isToken(LBRACKET)){
+				next()
+				types()
+				accept(RBRACKET)
+			} else if(isToken(DOT)){
+				next()
+				accept(TYPE)
+			}
+		}
+	}
+	
 	def classQualifier(): Unit = {
 		accept(LBRACKET)
 		ident()
