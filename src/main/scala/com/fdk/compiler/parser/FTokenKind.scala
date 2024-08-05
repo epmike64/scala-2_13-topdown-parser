@@ -3,7 +3,7 @@ package com.fdk.compiler.parser
 enum FTokenKind(val name: String, val tag: FTag):
 	case EOF extends FTokenKind(null, FTag.DEFAULT)
 	case ERROR extends FTokenKind(null, FTag.DEFAULT)
-	case IDENTIFIER extends FTokenKind(null, FTag.NAMED)
+	case ID extends FTokenKind(null, FTag.NAMED)
 	case ABSTRACT extends FTokenKind("abstract", FTag.DEFAULT)
 	case ASSERT extends FTokenKind("assert", FTag.DEFAULT)
 	case BOOLEAN extends FTokenKind("boolean", FTag.DEFAULT)

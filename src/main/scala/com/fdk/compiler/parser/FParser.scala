@@ -8,15 +8,9 @@ import com.fdk.compiler.util.FName
 import scala.collection.mutable.ArrayBuffer
 
 class FParser(lexer: IFLexer) extends IFParser {
-	{
-		lexer.nextToken()
-	}
-	private[this] var token: FToken = lexer.token
-	private[this] val F: FTreeMaker = new FTreeMaker()
-	private[this] val endPosTable: scala.collection.mutable.Map[FTree, Int] = scala.collection.mutable.Map()
 
-	def toP[T <: FTree](t: T): T = {t}
-	
+	private[this] var token: FToken = lexer.next
+
 	def next(): Unit = {
 		token = lexer.next
 	}
@@ -42,6 +36,14 @@ class FParser(lexer: IFLexer) extends IFParser {
 			reportSyntaxError(token.pos, "expected", tk)
 		}
 	}
+
+	def acceptOneOf(kinds: FTokenKind*): Unit = {
+		if(kinds.contains(token.kind)) next()
+		else {
+			setErrorEndPos(token.pos)
+			reportSyntaxError(token.pos, "expected", kinds: _*)
+		}
+	}
 	
 	def isTokenLa(kinds: FTokenKind*): Boolean = {
 		for(i <- 0 until kinds.length){
@@ -59,6 +61,25 @@ class FParser(lexer: IFLexer) extends IFParser {
 		token.kind == kind
 	}
 
+	def eatUp(kind: FTokenKind): Int = {
+		var n = 0
+		while(token.kind == kind){
+			n += 1 
+			next()
+		}
+		n
+	}
+	
+	def eatUpCount(kind: FTokenKind, count: Int): Unit = {
+		for(i <- 0 until count){
+			if(token.kind == kind) next()
+			else {
+				setErrorEndPos(token.pos)
+				reportSyntaxError(token.pos, "expected", kind)
+			}
+		}
+	}
+	
 	def isTokenOneOf(kinds: FTokenKind*): Boolean = {
 		kinds.contains(token.kind)
 	}
@@ -73,59 +94,59 @@ class FParser(lexer: IFLexer) extends IFParser {
 
 	def ident(): FName = {
 		val name = token.name
-		accept(IDENTIFIER)
+		accept(ID)
 		name
 	}
-
-	/**
-	 * Qualident = Ident { DOT [Annotations] Ident }
-	 */
-	def qualId(): FExpression = {
-		var t: FExpression = toP(F.at(token.pos).ident(ident()))
-		while (token.kind == DOT) {
-			val pos = token.pos
+	
+	def qualId(): Unit = {
+		ident()
+		while(token.kind == DOT){
 			next()
-			t = toP(F.at(token.pos).select(t, ident()))
+			ident()
 		}
-		t
 	}
 
-	def packageDecl(): FPackageDecl = {
-		val startPos = token.pos
-		next()
+	def _package(): Unit = {
+		accept(PACKAGE)
 		val pid = qualId()
-		val pd = F.at(startPos).packageDecl(pid)
-		endPosTable(pd) = token.pos
-		pd
 	}
 
-	def importDecl(): FImport = {
-		val startPos = token.pos
-		next()
-		val id = qualId()
-		val imp = F.at(startPos).makeImport(id)
-		endPosTable(imp) = token.pos
-		imp
-	}
-
-	/*
-		paramType:   type_  | '=>' type_  | type_ '*'
-	 */
-	def paramType(): Unit = {
-		token.kind match {
-			case FAT_ARROW => {
-				next()
-				_type()
-			}
-			case _ => {
-				_type()
-				next()
-				token.kind match {
-					case STAR => next()
+	def _import(): Unit = {
+		accept(IMPORT)
+		stableId()
+		if(isToken(DOT)){
+			token.kind match
+				case ID | UNDERSCORE => {
+					next()
 				}
-			}
+				case LBRACE => {
+					next()
+					if(isToken(ID)){
+						ident()
+						if (isToken(FAT_ARROW)) {
+							next()
+							acceptOneOf(ID, UNDERSCORE)
+						}
+						while (isToken(COMMA)) {
+							next()
+							ident()
+							if (isToken(FAT_ARROW)) {
+								next()
+								acceptOneOf(ID, UNDERSCORE)
+							}
+						}
+					} else if(isToken(UNDERSCORE)){
+						next()
+					} else {
+						reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
+					}
+					
+					accept(RBRACE)
+				}
 		}
 	}
+
+
 
 	def annotType():Unit = {
 		simpleType()
@@ -134,7 +155,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			simpleType()
 		}
 	}
-	
+
 	def compoundType(): Unit = {
 		annotType()
 		while (token.kind == WITH) {
@@ -142,34 +163,66 @@ class FParser(lexer: IFLexer) extends IFParser {
 			annotType()
 		}
 	}
-	
+
 	def infixType(): Unit = {
 		compoundType()
-		while (token.kind == IDENTIFIER) {
+		while (token.kind == ID) {
 			next()
 			compoundType()
 		}
 	}
+
+	def simpleType(): Unit = {
+		val leftPar = eatUp(LPAREN)
+		stableId()
+		eatUpCount(RPAREN, leftPar)
+	}
 	
 	def _type():Unit = {
-		if(isToken(LPAREN)){
+		val leftPar = eatUp(LPAREN)
+		simpleType()
+		if(isToken(FAT_ARROW)){
 			next()
-			if(!isToken(RPAREN)){
-				paramType()
-				while (isToken(COMMA)){
-					next()
-					paramType()
-				}
+			_type()
+		}
+		while(isToken(COMMA)){
+			next()
+			simpleType()
+			if (isToken(FAT_ARROW)) {
+				next()
+				_type()
 			}
-			accept(RPAREN)
+		}
+		eatUpCount(RPAREN, leftPar)
+	}
+
+	def paramType(): Unit = {
+		if (isToken(FAT_ARROW)) {
+			next()
+			_type()
 		} else {
-			//infixType
+			_type()
+			if (isToken(STAR)) next()
+		}
+	}
+
+	def classParam(): Unit = {
+		modifiers()
+		if (isTokenOneOf(VAR, VAL)) next()
+		ident()
+		accept(COLON)
+		paramType()
+		if (token.kind == EQ) {
+			next()
+			expr()
 		}
 	}
 	
+	
+	
 	def typeParam(): Unit = {
 		token.kind match {
-			case IDENTIFIER => ident()
+			case ID => ident()
 			case UNDERSCORE => next()
 		}
 		if (token.kind == LBRACKET) {
@@ -204,28 +257,9 @@ class FParser(lexer: IFLexer) extends IFParser {
 			_type()
 		}
 	}
-	
-	def simpleType(): Unit = {
-		if(isToken(LPAREN)){
-			next()
-			types()
-			accept(RPAREN)
-		} else {
-			stableId()
-			if(isToken(POUND)){
-				next()
-				accept(IDENTIFIER)
-			} else if(isToken(LBRACKET)){
-				next()
-				types()
-				accept(RBRACKET)
-			} else if(isToken(DOT)){
-				next()
-				accept(TYPE)
-			}
-		}
-	}
-	
+
+
+
 	def classQualifier(): Unit = {
 		accept(LBRACKET)
 		ident()
@@ -237,18 +271,18 @@ class FParser(lexer: IFLexer) extends IFParser {
 			classQualifier()
 		}
 		accept(DOT)
-		accept(IDENTIFIER)
+		accept(ID)
 	}
 
 	def stableIdRest(): Unit = {
-		while (token.kind == DOT && isTokenLaOneOf(1, IDENTIFIER)) {
+		while (token.kind == DOT && isTokenLaOneOf(1, ID)) {
 			next()
 			ident()
 		}
 	}
 	
 	def stableId(): Unit = {
-		if(isToken(IDENTIFIER)){
+		if(isToken(ID)){
 			ident()
 			if (token.kind == DOT) {
 				if(isTokenLaOneOf(1, THIS, SUPER)){
@@ -263,7 +297,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			stableId2()
 			stableIdRest()
 		} else {
-			reportSyntaxError(token.pos, "expected", IDENTIFIER, THIS, SUPER)
+			reportSyntaxError(token.pos, "expected", ID, THIS, SUPER)
 		}
 	}
 
@@ -315,7 +349,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		token.kind match {
 			case UNDERSCORE => next()
 			case LITERAL => next()
-			case IDENTIFIER => {
+			case ID => {
 				stableId()
 				if (token.kind == LPAREN) {
 					next()
@@ -345,7 +379,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 	 */
 	def generator(): Unit = {
 		token.kind match {
-			case IDENTIFIER => {
+			case ID => {
 				ident()
 				token.kind match {
 					case COLON => {
@@ -462,7 +496,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 	*/
 
 	def expr(): Unit = {
-		while (token.kind == IDENTIFIER || token.kind == UNDERSCORE) {
+		while (token.kind == ID || token.kind == UNDERSCORE) {
 			next()
 			if (token.kind == COLON) {
 				next()
@@ -478,28 +512,13 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 
-	/*
-		classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
-	 */
-	def classParam(): Unit = {
-		val mods = modifiersOpt()
-		token.kind match {
-			case VAR | VAL => next()
-		}
-		ident()
-		accept(COLON)
-		paramType()
-		if (token.kind == EQ) {
-			next()
-			expr()
-		}
-	}
+
 
 	/**
 	 * ClassDef ::= id [TypeParamClause] {Annotation} [AccessModifier] ClassParamClauses classTemplateOpt
 	 */
 	def classDef(isCase: Boolean): FTree = {
-		val startPos = token.pos
+
 		accept(CLASS)
 		val name = ident()
 		/*
@@ -557,71 +576,45 @@ class FParser(lexer: IFLexer) extends IFParser {
 			accept(RPAREN)
 		}
 
-		val cd = F.at(startPos).makeClassDecl()
-		endPosTable(cd) = token.pos
-		cd
+//		val cd = F.at(startPos).makeClassDecl()
+//		endPosTable(cd) = token.pos
+//
 	}
 
-	def objectDef(isCase: Boolean): FTree = {
+	def objectDef(isCase: Boolean): Unit = {
 		val startPos = token.pos
 		accept(OBJECT)
 		val name = ident()
-		val od = F.at(startPos).makeClassDecl()
-		endPosTable(od) = token.pos
-		od
+//		val od = F.at(startPos).makeClassDecl()
+//		endPosTable(od) = token.pos
+//		od
 	}
 
-	def traitDef(): FTree = {
+	def traitDef(): Unit = {
 		val startPos = token.pos
 		accept(TRAIT)
 		val name = ident()
-		val td = F.at(startPos).makeTraitDecl()
-		endPosTable(td) = token.pos
-		td
+
 	}
 
 	def accessQualifier(): Unit = {
 		accept(LBRACKET)
 		token.kind match {
-			case IDENTIFIER => ident()
+			case ID => ident()
 			case THIS => next()
 		}
 		accept(RBRACKET)
 	}
 
-	def modifier(): Option[Int] = {
-
-		token.kind match
-
-			case ABSTRACT | FINAL | SEALED | IMPLICIT | LAZY | OVERRIDE =>
-				next()
-				Some(1)
-
-			case PRIVATE | PROTECTED =>
-				next()
-				if (token.kind == LBRACKET) {
-					accessQualifier()
-				}
-				Some(2)
-
-			case _ =>
-				None
-	}
-
-	def modifiersOpt(): FModifiers = {
-		val mods = new FModifiers()
-		while (token.kind != EOF) {
-			val mod: Option[Int] = modifier()
-			mod match {
-				case Some(n) => ??? // mods.addFlag(FModifiers.ABSTRACT)
-				case _ => return mods
-			}
+	def modifiers(): Unit = {
+		while (token.kind == ABSTRACT || token.kind == FINAL || token.kind == SEALED || token.kind == IMPLICIT || token.kind == LAZY || token.kind == OVERRIDE || token.kind == PRIVATE || token.kind == PROTECTED) {
+			//modifier()
+			next()
 		}
-		mods
 	}
 
 
-	def tmplDef(mods: FModifiers): FTree = {
+	def tmplDef(): Unit = {
 		token.kind match {
 			case CASE =>
 				next()
@@ -630,7 +623,6 @@ class FParser(lexer: IFLexer) extends IFParser {
 					case OBJECT => objectDef(true)
 					case _ => {
 						reportSyntaxError(token.pos, "expected", CLASS)
-						F.makeSkip()
 					}
 				}
 			case CLASS => classDef(false)
@@ -638,38 +630,33 @@ class FParser(lexer: IFLexer) extends IFParser {
 			case TRAIT => traitDef()
 			case _ => {
 				reportSyntaxError(token.pos, "expected", CLASS)
-				F.makeSkip()
 			}
 		}
 	}
 
-	def topStatement(): FTree = {
+	def topStatement(): Unit = {
 		token.kind match {
-			case IMPORT => importDecl()
+			case IMPORT => _import()
 			case _ =>
-				val mods = modifiersOpt()
-				tmplDef(mods)
+				modifiers()
+				tmplDef()
 		}
 	}
 
-	def topStatementSeq(): ArrayBuffer[FTree] = {
-		val defs: ArrayBuffer[FTree] = ArrayBuffer()
+	def topStatements(): Unit = {
+
 		while (token.kind != EOF) {
-			defs += topStatement()
+			topStatement()
 		}
-		defs
 	}
 
-	def compilationUnit(): ArrayBuffer[FTree] = {
-
-		val defs: ArrayBuffer[FTree] = ArrayBuffer()
+	def compilationUnit(): Unit = {
 
 		while (token.kind == PACKAGE) {
-			defs += packageDecl()
+			_package()
 		}
 
-		defs ++= topStatementSeq()
-		defs
+		topStatements()
 	}
 }
 
