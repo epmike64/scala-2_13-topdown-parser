@@ -218,33 +218,33 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 	
-	
+	def typeParamClause():Unit = {
+		accept(LBRACKET)
+		typeParam()
+		while (token.kind == COMMA) {
+			next()
+			typeParam()
+		}
+		accept(RBRACKET)
+	}
 	
 	def typeParam(): Unit = {
-		token.kind match {
-			case ID => ident()
-			case UNDERSCORE => next()
-		}
-		if (token.kind == LBRACKET) {
+		if(isTokenOneOf(ID, UNDERSCORE)){
 			next()
-			if (token.kind != RBRACKET) {
-				variantTypeParam()
-				while (token.kind == COMMA) {
-					next()
-					variantTypeParam()
-				}
-			}
-			accept(RBRACKET)
 		}
-		if (token.kind == LOWER_BOUND) {
+		if(isToken(LBRACKET)){
+			typeParamClause()
+		}
+		
+		if (isToken(LOWER_BOUND)) {
 			next()
 			_type()
 		}
-		if (token.kind == UPPER_BOUND) {
+		if (isToken(UPPER_BOUND)) {
 			next()
 			_type()
 		}
-		if (token.kind == COLON) {
+		if (isToken(COLON)) {
 			next() //Context bound
 			_type()
 		}
@@ -257,9 +257,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			_type()
 		}
 	}
-
-
-
+	
 	def classQualifier(): Unit = {
 		accept(LBRACKET)
 		ident()
@@ -302,22 +300,12 @@ class FParser(lexer: IFLexer) extends IFParser {
 	}
 
 	def variantTypeParam(): Unit = {
-		token.kind match {
-			case PLUS | SUB => next()
+		if(isTokenOneOf(PLUS, SUB)){
+			next()
 		}
 		typeParam()
 	}
-
-	def typeParamClause(): Option[FTree] = {
-		accept(LBRACKET)
-		variantTypeParam()
-		while (token.kind == COMMA) {
-			next()
-			variantTypeParam()
-		}
-		accept(RBRACKET)
-		None
-	}
+	
 
 	def pattern(): Unit = {
 		//pattern1()
@@ -520,6 +508,19 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 	
+	def constr():Unit = {
+		simpleType()
+		argumentExprs()//*
+	}
+	
+	def classParents():Unit = {
+		constr()
+		while(isToken(WITH)){
+			next()
+			simpleType()
+		}
+	}
+	
 	def classDef(isCase: Boolean): Unit = {
 
 		accept(CLASS)
@@ -556,17 +557,15 @@ class FParser(lexer: IFLexer) extends IFParser {
 			accept(RPAREN)
 		}
 
-		if (token.kind == EXTENDS) {
+		if (isToken(EXTENDS)) {
 			next()
-			if (token.kind == LBRACE) {
+			if (isToken(LBRACE)) {
 				next()
 				//earlyDefs()
 				accept(RBRACE)
 				accept(WITH)
 			}
-			simpleType()
-			argumentExprs()
-			
+			classParents()
 		}
 	}
 
@@ -633,18 +632,15 @@ class FParser(lexer: IFLexer) extends IFParser {
 	}
 
 	def topStatements(): Unit = {
-
 		while (token.kind != EOF) {
 			topStatement()
 		}
 	}
 
 	def compilationUnit(): Unit = {
-
 		while (token.kind == PACKAGE) {
 			_package()
 		}
-
 		topStatements()
 	}
 }
