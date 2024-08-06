@@ -29,11 +29,11 @@ class FParser(lexer: IFLexer) extends IFParser {
 	/** If next input token matches given token, skip it, otherwise report
 	 * an error.
 	 */
-	def accept(tk: FTokenKind): Unit = {
-		if(token.kind == tk) next()
+	def accept(kind: FTokenKind): Unit = {
+		if(token.kind == kind) next()
 		else {
 			setErrorEndPos(token.pos)
-			reportSyntaxError(token.pos, "expected", tk)
+			reportSyntaxError(token.pos, "expected", kind)
 		}
 	}
 
@@ -45,16 +45,16 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 	
-	def isTokenLa(kinds: FTokenKind*): Boolean = {
-		for(i <- 0 until kinds.length){
-			if(lexer.lookAhead(i).kind != kinds(i)) return false
-		}
-		true
-	}
-	
 
 	def isTokenLaOneOf(n: Int, kinds: FTokenKind*): Boolean = {
 		kinds.contains(lookAhead(n))
+	}
+	
+	def eqTokenPrefix(prefix: FTokenKind*): Boolean = {
+		for (i <- 0 until prefix.length) {
+			if (lookAhead(i) != prefix(i)) return false
+		}
+		true
 	}
 	
 	def isToken(kind: FTokenKind): Boolean = {
@@ -263,7 +263,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		ident()
 		accept(RBRACKET)
 	}
-	
+
 	def stableId2(): Unit = {
 		if (token.kind == LBRACKET) {
 			classQualifier()
@@ -273,13 +273,13 @@ class FParser(lexer: IFLexer) extends IFParser {
 	}
 
 	def stableIdRest(): Unit = {
-		while (token.kind == DOT && isTokenLaOneOf(1, ID)) {
+		while (eqTokenPrefix(DOT, ID)) {
 			next()
-			ident()
+			accept(ID)
 		}
 	}
 	
-	def stableId(): Unit = {
+	def stableId(): Boolean = {
 		if(isToken(ID)){
 			ident()
 			if (token.kind == DOT) {
@@ -289,14 +289,14 @@ class FParser(lexer: IFLexer) extends IFParser {
 				} 
 			}
 			stableIdRest()
-			
 		} else if(isTokenOneOf(THIS, SUPER)){
 			next()
 			stableId2()
 			stableIdRest()
 		} else {
-			reportSyntaxError(token.pos, "expected", ID, THIS, SUPER)
+			return false
 		}
+		true
 	}
 
 	def variantTypeParam(): Unit = {
@@ -536,7 +536,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(RCURL)
 		accept(WITH)
 	}
-	
+
 	def funDef(): Unit = {
 		accept(DEF)
 		ident()
@@ -549,11 +549,11 @@ class FParser(lexer: IFLexer) extends IFParser {
 		accept(EQ)
 		expr()
 	}
-	
+
 	def typeDcl():Unit = {
-		
+
 	}
-	
+
 	def defDcl():Unit = {
 		//def_
 		//dcl
@@ -570,11 +570,11 @@ class FParser(lexer: IFLexer) extends IFParser {
 			reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
 		}
 	}
-	
+
 	def valDefDcl(): Unit = {
 		accept(VAL)
 	}
-	
+
 	def defDclV2():Unit = {
 		token.kind match
 			case VAL | VAR => ???
@@ -585,7 +585,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 				reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
 			}
 	}
-	
+
 	def templateStat():Unit = {
 		if(isToken(IMPORT)){
 			_import()
@@ -595,10 +595,49 @@ class FParser(lexer: IFLexer) extends IFParser {
 			expr()
 		}
 	}
+
+	def literal():Boolean = {
+		if(isToken(SUB) && isTokenLaOneOf(1, INT_LTR, FLOAT_LTR)){
+			skip(2)
+			return true
+		} else if(isTokenOneOf(INT_LTR, FLOAT_LTR, STR_LTR, CHR_LTR, BOOL_LTR, NULL)){
+			next()
+			return true
+		}
+		false
+	}
+	/*
+	State 332
+	 */
+	def templateStatV2():Unit = {
+		if(literal()){
+		}
+		if(stableId()){
+		}
+
+
+
+
+
+
+
+
+
+		token.kind match {
+			case IMPORT => _import()
+			case VAL | VAR => valDefDcl()
+			case DEF => funDef()
+			case TYPE => typeDcl()
+			case CASE | CLASS | OBJECT | TRAIT => tmplDef()
+			case _ => {
+				reportSyntaxError(token.pos, "expected", IMPORT, VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+			}
+		}
+	}
 	/*
 	State 196
 	 */
-	def templateBody():Unit = {
+	def templateBody(): Unit = {
 		accept(LCURL)
 		if(isTokenOneOf(ID, THIS)){
 			//selfType
@@ -610,7 +649,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 		next()
 	}
-	
+
 	def classDef(isCase: Boolean): Unit = {
 
 		accept(CLASS)
