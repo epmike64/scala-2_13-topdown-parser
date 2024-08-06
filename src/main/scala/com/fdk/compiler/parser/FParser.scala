@@ -593,6 +593,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			case THIS => next()
 		}
 		accept(RBRACKET)
+		
 	}
 
 	def modifiers(): Unit = {
