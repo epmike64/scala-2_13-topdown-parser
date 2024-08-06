@@ -571,6 +571,21 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 	
+	def valDefDcl(): Unit = {
+		accept(VAL)
+	}
+	
+	def defDclV2():Unit = {
+		token.kind match
+			case VAL | VAR => ???
+			case DEF => ???
+			case TYPE => ???
+			case CASE | CLASS | OBJECT | TRAIT => ???
+			case _ => {
+				reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+			}
+	}
+	
 	def templateStat():Unit = {
 		if(isToken(IMPORT)){
 			_import()
@@ -589,7 +604,7 @@ class FParser(lexer: IFLexer) extends IFParser {
 			//selfType
 			next()
 		}
-		while (isToken(RCURL)) {
+		while (!isToken(RCURL)) {
 			next()
 			templateStat() //+
 		}
