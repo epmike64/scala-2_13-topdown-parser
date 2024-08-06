@@ -481,65 +481,41 @@ class FParser(lexer: IFLexer) extends IFParser {
 //		| postfixExpr 'match' '{' caseClauses '}'
 		}
 	}
-	/*  
-		expr: (bindings | 'implicit'? Id | '_') '=>' expr | expr1
-			bindings: '(' binding (',' binding)* ')'
-				 binding: (Id | '_') (':' type_)?
-		expr1:
-			 'if' '(' expr ')' NL* expr ('else' expr)?
-			 | 'while' '(' expr ')' NL* expr
-			 | 'try' expr ('catch' expr)? ('finally' expr)?
-			 | 'do' expr 'while' '(' expr ')'
-			 | 'for' ('(' enumerators ')' | '{' enumerators '}') 'yield'? expr
-			 | 'throw' expr
-			 | 'return' expr?
-			 | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
-			 | simpleExpr1 argumentExprs '=' expr
-			 | postfixExpr ascription?
-			 | postfixExpr 'match' '{' caseClauses '}'
-	*/
 
-	def expr(): Unit = {
-		while (token.kind == ID || token.kind == UNDERSCORE) {
+	def args():Unit = {
+		expr() // postfixExpr (':' | '_' | '*')?
+	}
+
+	def expr():Unit = {
+		if (isTokenOneOf(ID, UNDERSCORE)) {
 			next()
-			if (token.kind == COLON) {
+			if (isToken(COLON)) {
 				next()
 				_type()
 			}
-		}
-		if (token.kind == FAT_ARROW) {
-			next()
+			while (isToken(COMMA)) {
+				next()
+				acceptOneOf(ID, UNDERSCORE)
+				if (isToken(COLON)) {
+					next()
+					_type()
+				}
+			}
+			accept(FAT_ARROW)
 			expr()
-		}
-		else {
+		} else if (isToken(IMPLICIT)) {
+			acceptOneOf(ID, UNDERSCORE)
+			accept(FAT_ARROW)
+			expr()
+		} else {
 			expr1()
 		}
 	}
 	def argumentExprs():Unit = {
 		if (isTokenOneOf(LPAREN, LBRACE)) {
 			val left = token
-			if (isTokenOneOf(ID, UNDERSCORE)) {
-				next()
-				if (isToken(COLON)) {
-					next()
-					_type()
-				}
-				while (isToken(COMMA)) {
-					next()
-					if (isToken(COLON)) {
-						next()
-						_type()
-					}
-				}
-				accept(FAT_ARROW)
-				expr()
-			} else if(isToken(IMPLICIT)) {
-				acceptOneOf(ID, UNDERSCORE)
-				accept(FAT_ARROW)
-				expr()
-			} else {
-				expr1()
-			}
+			next()
+			args() // blockExpr()
 			accept(if (left.kind == LPAREN) RPAREN else RBRACE)
 		}
 	}
