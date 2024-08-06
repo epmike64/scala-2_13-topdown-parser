@@ -475,6 +475,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 			}
 			case THROW => expr()
 			case RETURN => ???
+//	    | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
+//		| simpleExpr1 argumentExprs '=' expr
+//		| postfixExpr ascription?
+//		| postfixExpr 'match' '{' caseClauses '}'
 		}
 	}
 	/*  
@@ -511,31 +515,50 @@ class FParser(lexer: IFLexer) extends IFParser {
 			expr1()
 		}
 	}
-
-
-
-	/**
-	 * ClassDef ::= id [TypeParamClause] {Annotation} [AccessModifier] ClassParamClauses classTemplateOpt
-	 */
-	def classDef(isCase: Boolean): FTree = {
+	def argumentExprs():Unit = {
+		if (isTokenOneOf(LPAREN, LBRACE)) {
+			val left = token
+			if (isTokenOneOf(ID, UNDERSCORE)) {
+				next()
+				if (isToken(COLON)) {
+					next()
+					_type()
+				}
+				while (isToken(COMMA)) {
+					next()
+					if (isToken(COLON)) {
+						next()
+						_type()
+					}
+				}
+				accept(FAT_ARROW)
+				expr()
+			} else if(isToken(IMPLICIT)) {
+				acceptOneOf(ID, UNDERSCORE)
+				accept(FAT_ARROW)
+				expr()
+			} else {
+				expr1()
+			}
+			accept(if (left.kind == LPAREN) RPAREN else RBRACE)
+		}
+	}
+	
+	def classDef(isCase: Boolean): Unit = {
 
 		accept(CLASS)
 		val name = ident()
-		/*
-		typeParamClause: '[' variantTypeParam (',' variantTypeParam)* ']'
-		 */
-		if (token.kind == LBRACKET) {
+
+		if (isToken(LBRACKET)) {
 			next()
 			variantTypeParam()
-			while (token.kind == COMMA) {
+			while (isToken(COMMA)) {
 				next()
 				variantTypeParam()
 			}
 			accept(RBRACKET)
 		}
-		/*
-		accessModifier: ('private' | 'protected') accessQualifier?
-		 */
+	
 		token.kind match {
 			case PRIVATE | PROTECTED =>
 				next()
@@ -543,17 +566,13 @@ class FParser(lexer: IFLexer) extends IFParser {
 					accessQualifier()
 				}
 		}
-		/*
-			classParamClauses: classParamClause* (NL? '(' 'implicit' classParams ')')?
-			classParamClause: NL? '(' classParams? ')'
-			classParams: classParam (',' classParam)*
-			classParam: annotation* modifier* ('val' | 'var')? Id ':' paramType ('=' expr)?
-		 */
-		if (token.kind == LPAREN) {
+
+		if (isToken(LPAREN)) {
 			next()
-			while (token.kind != RPAREN) {
+			if(!isToken(RPAREN)){
+				next()
 				classParam()
-				if (token.kind == COMMA) {
+				while(isToken(COMMA)){
 					next()
 					classParam()
 				}
@@ -569,16 +588,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 				accept(RBRACE)
 				accept(WITH)
 			}
+			simpleType()
+			argumentExprs()
+			
 		}
-		if (token.kind == LPAREN) { //templateBody
-			next()
-
-			accept(RPAREN)
-		}
-
-//		val cd = F.at(startPos).makeClassDecl()
-//		endPosTable(cd) = token.pos
-//
 	}
 
 	def objectDef(isCase: Boolean): Unit = {
@@ -635,11 +648,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 	}
 
 	def topStatement(): Unit = {
-		token.kind match {
-			case IMPORT => _import()
-			case _ =>
-				modifiers()
-				tmplDef()
+		if(isToken(IMPORT)) _import()
+		else {
+			modifiers()
+			tmplDef()
 		}
 	}
 
