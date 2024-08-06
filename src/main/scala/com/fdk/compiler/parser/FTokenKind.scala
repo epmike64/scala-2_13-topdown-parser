@@ -55,8 +55,8 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case WHILE extends FTokenKind("while", FTag.DEFAULT)
 	case LPAREN extends FTokenKind("(", FTag.DEFAULT)
 	case RPAREN extends FTokenKind(")", FTag.DEFAULT)
-	case LBRACE extends FTokenKind("{", FTag.DEFAULT)
-	case RBRACE extends FTokenKind("}", FTag.DEFAULT)
+	case LCURL extends FTokenKind("{", FTag.DEFAULT)
+	case RCURL extends FTokenKind("}", FTag.DEFAULT)
 	case LBRACKET extends FTokenKind("[", FTag.DEFAULT)
 	case RBRACKET extends FTokenKind("]", FTag.DEFAULT)
 	case SEMI extends FTokenKind(";", FTag.DEFAULT)
@@ -116,12 +116,10 @@ enum FTokenKind(val name: String, val tag: FTag):
 
 	case RSQUARE extends FTokenKind("RSQUARE", FTag.DEFAULT)
 	case BoundVarid extends FTokenKind("BoundVarid", FTag.NAMED)
-	case RCURL extends FTokenKind("RCURL", FTag.DEFAULT)
 
 	case EXCL extends FTokenKind("EXCL", FTag.DEFAULT)
 	case OBJECT extends FTokenKind("OBJECT", FTag.DEFAULT)
-
-	case LCURL extends FTokenKind("LCURL", FTag.DEFAULT)
+	
 	case GH_COLON extends FTokenKind("GH_COLON", FTag.DEFAULT)
 	case NULL extends FTokenKind("NULL", FTag.DEFAULT)
 	case IMPLICIT extends FTokenKind("IMPLICIT", FTag.DEFAULT)
