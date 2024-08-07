@@ -393,14 +393,13 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 	
 	def generatorRest(): Boolean = {
 		if (guard()) {
-			return true
-		}
-		if (pattern1()) {
+		} else if (pattern1()) {
 			accept(EQ)
 			expr()
-			return true
+		} else {
+			return false
 		}
-		false
+		true
 	}
 	
 	def generator(): Boolean = {
@@ -414,8 +413,13 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		true
 	}
 
-	def enumerators(): Unit = {
-		while(generator()) {}
+	def enumerators(): Boolean = {
+		if(generator()){
+			while(generator()) {}
+		} else {
+			return false
+		}
+		true
 	}
 
 	def simpleExpr(): Boolean = {
@@ -457,7 +461,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		false
 	}
 
-	def simpleExpr1Rest(): Unit = {
+	def simpleExpr1Rest(): Boolean = {
 		if (isToken(UNDERSCORE)) {
 			next()
 			simpleExpr1Rest2()
@@ -465,10 +469,13 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 			simpleExpr1Rest2()
 		} else if (isTokenOneOf(LPAREN, LCURL)) {
 			argumentExprs()
+		} else {
+			return false
 		}
+		true
 	}
 
-	def simpleExpr1Rest2(): Unit = {
+	def simpleExpr1Rest2(): Boolean = {
 		if (isToken(DOT)) {
 			next()
 			ident()
@@ -476,7 +483,10 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 			next()
 			types()
 			accept(RBRACKET)
+		} else {
+			return false
 		}
+		true
 	}
 
 	def prefixExpr(): Boolean = {
@@ -685,18 +695,56 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 
 
 	def patDef(): Boolean = {
-		pattern2()
-	}
-
-	def patVarDef(): Boolean = {
-		if (isToken(VAL)) {
-			//patDef
-		} else if (isToken(VAR)) {
-			//varDef
+		if(pattern2()){
+			while(isToken(COMMA)){
+				next()
+				pattern2()
+			}
+			if(isToken(COLON)){
+				next()
+				_type()
+			}
+			accept(EQ)
+			expr()
 		} else {
 			return false
 		}
 		true
+	}
+	
+	def ids(): Boolean = {
+		if(isToken(ID)){
+			ident()
+			while(isToken(COMMA)){
+				next()
+				ident()
+			}
+		} else {
+			return false
+		}
+		true
+	}
+	
+	def varDef(): Boolean = {
+		if(patDef()){
+		} else if(ids()){
+			accept(COLON)
+			_type()
+			accept(EQ)
+			accept(UNDERSCORE)
+		} else {
+			return false
+		}
+		true
+	}
+	
+	def patVarDef(): Boolean = {
+		if (isToken(VAL)) {
+			return patDef()
+		} else if (isToken(VAR)) {
+			return varDef()
+		} 
+		false
 	}
 
 	def earlyDefs(): Unit = {
@@ -737,34 +785,25 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 	}
 
 	def defDcl(): Boolean = {
-
-		if (patVarDef()) {
-
-		} else if (funDef()) {
-
-		} else if (isTokenOneOf(CASE, CLASS, OBJECT, TRAIT)) {
-			tmplDef()
-		} else if (isToken(TYPE)) {
-			typeDcl()
-		} else {
-			return false
-		}
-		true
-	}
-
-	def valVarDcl(): Boolean = {
-		if (isTokenOneOf(VAL, VAR)) {
-			while ( {
+			if(isToken(VAL)){
 				next()
-				ident()
-				isToken(COMMA)
-			}) {}
-			accept(COLON)
-			_type()
-			return true
-		}
-		false
+			}
+
 	}
+
+//	def valVarDcl(): Boolean = {
+//		if (isTokenOneOf(VAL, VAR)) {
+//			while ( {
+//				next()
+//				ident()
+//				isToken(COMMA)
+//			}) {}
+//			accept(COLON)
+//			_type()
+//			return true
+//		}
+//		false
+//	}
 
 	def typeDcl(): Boolean = {
 		if (isToken(TYPE)) {
@@ -780,12 +819,123 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		false
 	}
 
+	def varDcl(): Boolean = {
+		if(isToken(VAR) && isTokenLaOneOf(1, ID)){
+			ids()
+			accept(COLON)
+			_type()
+			return true
+		}
+		false
+	}
+	
+	def valDcl(): Boolean = {
+		if(isToken(VAL) && isTokenLaOneOf(1, ID)){
+			ids()
+			accept(COLON)
+			_type()
+			return true
+		}
+		false
+	}
+	
+	def funTypeParamClause(): Boolean = {
+		if(isToken(LBRACKET)){
+			next()
+			typeParam()
+			while(isToken(COMMA)){
+				next()
+				typeParam()
+			}
+			accept(RBRACKET)
+			return true
+		}
+		false
+	}
+	
+	def param(): Boolean = {
+		if(isTokenOneOf(ID)){
+			ident()
+			if(isToken(COLON)) {
+				next()
+				paramType()
+			} else if(isToken(EQ)){
+				next()
+				expr()
+			}
+			return true
+		}
+		false
+	}
+	
+	def params(): Boolean = {
+		if(param()){
+			while(isToken(COMMA)){
+				next()
+				param()
+			}
+			return true
+		}
+		false
+	}
+	
+	def paramClausesRest(): Boolean = {
+		if (isToken(LPAREN) && isTokenLaOneOf(1, IMPLICIT)) {
+			skip(2)
+			params()
+			return true
+		}
+		false
+	}
+	
+	def paramClauses(): Boolean = {
+		if(paramClausesRest()){
+			return true
+		}
+		else if(isToken(LPAREN)){
+			next()
+			params()
+			accept(RPAREN)
+			paramClausesRest()
+			return true
+		} else if(paramClausesRest()){
+			return true
+		}
+		false
+	}
+	
+	def funSig(): Boolean = {
+		if(isToken(ID)){
+			ident()
+			funTypeParamClause()
+			paramClauses()
+			return true
+		}
+		false
+	}
+	
+	def funDcl(): Boolean = {
+		accept(DEF)
+		if(isToken(DEF)){
+			next()
+			
+			return true
+		}
+		false
+	}
+	
 	def dcl(): Boolean = {
-		if (valVarDcl()) {
-		} else if (typeDcl()) {
+		if (isToken(VAL)) {
+			return valDcl()
+		} else if (isToken(VAR)) {
+			return varDcl()
+		} else if(isToken(DEF)){
+			return funDcl()
+		} else if (isToken(TYPE)) {
+			return typeDcl()
 		} else {
 			return false
-		}
+		} 
 		true
 	}
 
@@ -873,16 +1023,17 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 	}
 
-	def templateStat(): Unit = {
+	def templateStat(): Boolean = {
 		if (_import()) {
 		} else if (modifiers()) {
 			defDcl()
 		}
 		if (defDcl()) {
-
+		} else if(expr()) {
 		} else {
-			expr()
+			return false
 		}
+		true
 	}
 
 	def literal(): Boolean = {
