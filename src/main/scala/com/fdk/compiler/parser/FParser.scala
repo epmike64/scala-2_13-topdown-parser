@@ -7,7 +7,7 @@ import com.fdk.compiler.util.FName
 
 import scala.collection.mutable.ArrayBuffer
 
-class FParser(lexer: IFLexer) {//extends IFParser {
+class FParser(lexer: IFLexer) { //extends IFParser {
 
 	private[this] var token: FToken = lexer.next
 
@@ -51,7 +51,7 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		kinds.contains(lookAhead(n))
 	}
 
-	def eqTokenPrefix(prefix: FTokenKind*): Boolean = {
+	def isTokenPrefix(prefix: FTokenKind*): Boolean = {
 		for (i <- 0 until prefix.length) {
 			if (lookAhead(i) != prefix(i)) return false
 		}
@@ -112,39 +112,43 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		val pid = qualId()
 	}
 
-	def _import(): Unit = {
-		accept(IMPORT)
-		stableId()
-		if (isToken(DOT)) {
-			token.kind match
-				case ID | UNDERSCORE => {
-					next()
-				}
-				case LCURL => {
-					next()
-					if (isToken(ID)) {
-						ident()
-						if (isToken(FAT_ARROW)) {
-							next()
-							acceptOneOf(ID, UNDERSCORE)
-						}
-						while (isToken(COMMA)) {
-							next()
+	def _import(): Boolean = {
+		if (isToken(IMPORT)) {
+			next()
+			stableId()
+			if (isToken(DOT)) {
+				token.kind match
+					case ID | UNDERSCORE => {
+						next()
+					}
+					case LCURL => {
+						next()
+						if (isToken(ID)) {
 							ident()
 							if (isToken(FAT_ARROW)) {
 								next()
 								acceptOneOf(ID, UNDERSCORE)
 							}
+							while (isToken(COMMA)) {
+								next()
+								ident()
+								if (isToken(FAT_ARROW)) {
+									next()
+									acceptOneOf(ID, UNDERSCORE)
+								}
+							}
+						} else if (isToken(UNDERSCORE)) {
+							next()
+						} else {
+							reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
 						}
-					} else if (isToken(UNDERSCORE)) {
-						next()
-					} else {
-						reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
-					}
 
-					accept(RCURL)
-				}
+						accept(RCURL)
+					}
+			}
+			return true
 		}
+		false
 	}
 
 
@@ -273,7 +277,7 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 	}
 
 	def stableIdRest(): Unit = {
-		while (eqTokenPrefix(DOT, ID)) {
+		while (isTokenPrefix(DOT, ID)) {
 			next()
 			accept(ID)
 		}
@@ -306,9 +310,31 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		typeParam()
 	}
 
-
+	def pattern2(): Boolean = {
+		if (isTokenPrefix(ID, AT)) {
+			ident()
+			next()
+			pattern3()
+		} else {
+			pattern3()
+		}
+	}
+	
+	def pattern1(): Unit = {
+		if(isTokenOneOf(UNDERSCORE, ID) && isTokenLaOneOf(1, COLON)){
+			skip(2)
+			_type()
+		} else {
+			pattern2()
+		}
+	}
+	
 	def pattern(): Unit = {
-		//pattern1()
+		pattern1()
+		while (isToken(PIPE)) {
+			next()
+			pattern1()
+		}
 	}
 
 	def patterns(): Unit = {
@@ -325,30 +351,27 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		}
 	}
 
-	/*
-	simplePattern
-				: '_'
-				| Varid
-				| literal
-				| stableId ('(' patterns? ')')?
-				| stableId '(' (patterns ',')? (Id '@')? '_' '*' ')'
-				| '(' patterns? ')'
-	 */
-	def simplePattern(): Unit = {
-		token.kind match {
-			case UNDERSCORE => next()
-			case LITERAL => next()
-			case ID => {
-				stableId()
-				if (token.kind == LPAREN) {
-					next()
-					if (token.kind != RPAREN) {
-						patterns()
-					}
-					accept(RPAREN)
-				}
+	def simplePatternRest(): Boolean = {
+		if (isToken(LPAREN)) {
+			next()
+			if (token.kind != RPAREN) {
+				patterns()
 			}
+			accept(RPAREN)
+			return true
 		}
+		false
+	}
+	
+	def simplePattern(): Boolean = {
+		if(isToken(UNDERSCORE) || literal()){
+			return true
+		}
+		if(stableId()){
+			simplePatternRest()
+			return true
+		}
+		simplePatternRest()
 	}
 
 	/*
@@ -456,25 +479,25 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 			accept(RBRACKET)
 		}
 	}
-	
+
 	def prefixExpr(): Boolean = {
-		if(isTokenOneOf(SUB, PLUS, BANG, TILDE)){
+		if (isTokenOneOf(SUB, PLUS, BANG, TILDE)) {
 			next()
 		}
-		if(simpleExpr()){
+		if (simpleExpr()) {
 			return true
-		} else if(simpleExpr1()){
-			if(isToken(UNDERSCORE)){
+		} else if (simpleExpr1()) {
+			if (isToken(UNDERSCORE)) {
 				next()
 			}
 			return true
 		}
 		false
 	}
-	
+
 	def infixExpr(): Boolean = {
-		if(prefixExpr()){
-			if(isToken(ID)) {
+		if (prefixExpr()) {
+			if (isToken(ID)) {
 				while ( {
 					next()
 					prefixExpr()
@@ -485,10 +508,26 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		}
 		false
 	}
-	
+
 	def postfixExpr(): Boolean = {
-		if(infixExpr()){
-			
+		// Grammar is ambiguous here
+		if (infixExpr()) {
+			return true
+		}
+		false
+	}
+
+
+	def caseCause(): Boolean = {
+		if (isToken(CASE)) {
+			next()
+			pattern()
+			if (isToken(IF)) {
+				next()
+				postfixExpr()
+			}
+			accept(FAT_ARROW)
+			block()
 			return true
 		}
 		false
@@ -545,8 +584,31 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		} else if (isToken(RETURN)) {
 			//expr()
 		} else if (simpleExpr1()) {
-		
+			if (argumentExprs()) {
+				accept(EQ)
+				expr()
+			} else {
+				if (isToken(UNDERSCORE)) {
+					next()
+				}
+				if (isToken(DOT)) {
+					next()
+					ident()
+				}
+				accept(EQ)
+				expr()
+			}
+
 		} else if (postfixExpr()) {
+			if (isToken(MATCH)) {
+				next()
+				accept(LCURL)
+				while (token.kind != RCURL) {
+					next()
+					caseClause()
+				}
+				next()
+			}
 		}
 	}
 
@@ -587,13 +649,15 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		}
 	}
 
-	def argumentExprs(): Unit = {
+	def argumentExprs(): Boolean = {
 		if (isTokenOneOf(LPAREN, LCURL)) {
 			val left = token
 			next()
 			args() // blockExpr()
 			accept(if (left.kind == LPAREN) RPAREN else RCURL)
+			return true
 		}
+		false
 	}
 
 	def constr(): Unit = {
@@ -609,14 +673,30 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		}
 	}
 
-	def patVarDef(): Unit = {
+	def pattern3(): Boolean = {
+		simplePattern()
+		while (isToken(ID)) {
+			ident()
+			simplePattern()
+		}
+		true
+	}
+	
+
+	
+	def patDef(): Boolean = {
+		pattern2()
+	}
+	
+	def patVarDef(): Boolean = {
 		if (isToken(VAL)) {
 			//patDef
 		} else if (isToken(VAR)) {
 			//varDef
 		} else {
-			reportSyntaxError(token.pos, "expected", VAL, VAR)
+			return false
 		}
+		true
 	}
 
 	def earlyDefs(): Unit = {
@@ -627,40 +707,99 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 		accept(WITH)
 	}
 
-	def funDef(): Unit = {
-		accept(DEF)
-		ident()
-		typeParamClause()
-		paramType()
-		if (isToken(COLON)) {
+	def funDef(): Boolean = {
+		if(isToken(DEF)) {
 			next()
-			_type()
+			ident()
+			typeParamClause()
+			paramType()
+			if (isToken(COLON)) {
+				next()
+				_type()
+			}
+			accept(EQ)
+			expr()
+			return true
 		}
-		accept(EQ)
-		expr()
+		false
+	}
+	
+	def typeDef(): Boolean = {
+		if (isToken(TYPE)) {
+			next()
+			ident()
+			typeParamClause()
+			accept(EQ)
+			_type()
+			return true
+		}
+		false
 	}
 
-	def typeDcl(): Unit = {
+	def defDcl(): Boolean = {
 
-	}
+		if (patVarDef()) {
 
-	def defDcl(): Unit = {
-		//def_
-		//dcl
-		if (isTokenOneOf(VAL, VAR)) {
-			patVarDef()
-		} else if (isToken(DEF)) {
-			funDef()
+		} else if (funDef()) {
+
 		} else if (isTokenOneOf(CASE, CLASS, OBJECT, TRAIT)) {
 			tmplDef()
 		} else if (isToken(TYPE)) {
 			typeDcl()
+		} else {
+			return false
 		}
-		else {
-			reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
-		}
+		true
 	}
-
+	
+	def valVarDcl():Boolean = {
+		if(isTokenOneOf(VAL, VAR)){
+			while({
+				next()
+				ident()
+				isToken(COMMA)
+			}){}
+			accept(COLON)
+			_type()
+			return true
+		}
+		false
+	}
+	
+	def typeDcl(): Boolean = {
+		if(isToken(TYPE)){
+			next()
+			ident()
+			typeParamClause()
+			if(isTokenOneOf(LOWER_BOUND, UPPER_BOUND)) {
+				next()
+				_type()
+			}
+			return true
+		}
+		false
+	}
+	
+	def dcl(): Boolean = {
+		if(valVarDcl()){
+		} else if(typeDcl()){
+		} else {
+			return false
+		}
+		true
+	}
+	
+	def _def(): Boolean = {
+		if (patVarDef()) {
+		} else if (funDef()) {
+		} else if (typeDef()) {
+		} else if (tmplDef()) {
+		} else {
+			return false
+		}
+		true
+	}
+	
 	def valDefDcl(): Unit = {
 		accept(VAL)
 	}
@@ -676,11 +815,71 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 			}
 	}
 
+	def resultExpr(): Unit = {
+	}
+
+	def block(): Unit = {
+		blockStats()
+		resultExpr()
+	}
+	
+	def modifiers(): Boolean = {
+		var isModifier: Boolean = false
+		while(modifier()){
+			isModifier = true
+			next()
+		}
+		isModifier
+	}
+	
+	def modifier(): Boolean = {
+		if (localModifier()  || accessModifier()) {
+			return true
+		}
+		if (isToken(OVERRIDE)) {
+			next()
+			return true
+		}
+		false
+	}
+
+	def localModifier(): Boolean = {
+		if (isTokenOneOf(ABSTRACT, FINAL, SEALED, IMPLICIT, LAZY)) {
+			next()
+			return true
+		}
+		false
+	}
+	
+	def accessModifier(): Boolean = {
+		if (isTokenOneOf(PRIVATE, PROTECTED)) {
+			next()
+			if (isToken(LBRACKET)) {
+				accessQualifier()
+			}
+			return true
+		}
+		false
+	}
+	
+	def blockStats(): Unit = {
+		if(_import()){
+		} else if(localModifier()){
+			tmplDef()
+		} else if(isTokenOneOf(IMPLICIT, LAZY)){
+			_def()
+		} else {
+			expr1()
+		}
+	}
+	
 	def templateStat(): Unit = {
-		if (isToken(IMPORT)) {
-			_import()
+		if (_import()) {
 		} else if (modifiers()) {
 			defDcl()
+		}
+		if (defDcl()) {
+			
 		} else {
 			expr()
 		}
@@ -805,37 +1004,27 @@ class FParser(lexer: IFLexer) {//extends IFParser {
 			case THIS => next()
 		}
 		accept(RBRACKET)
-
 	}
 
-	def modifiers(): Boolean = {
-		var isModifier = false
-		while (token.kind == ABSTRACT || token.kind == FINAL || token.kind == SEALED || token.kind == IMPLICIT || token.kind == LAZY || token.kind == OVERRIDE || token.kind == PRIVATE || token.kind == PROTECTED) {
-			isModifier = true
+	def tmplDef(): Boolean = {
+		var isCase = false
+		if(isToken(CASE)){
+			isCase = true
 			next()
 		}
-		isModifier
-	}
-
-
-	def tmplDef(): Unit = {
-		token.kind match {
-			case CASE =>
-				next()
-				token.kind match {
-					case CLASS => classDef(true)
-					case OBJECT => objectDef(true)
-					case _ => {
-						reportSyntaxError(token.pos, "expected", CLASS)
-					}
-				}
-			case CLASS => classDef(false)
-			case OBJECT => objectDef(false)
-			case TRAIT => traitDef()
-			case _ => {
-				reportSyntaxError(token.pos, "expected", CLASS)
+		if(isToken(TRAIT)){
+			if(isCase){
+				reportSyntaxError(token.pos, "expected", CLASS, OBJECT)
 			}
+			traitDef()
+		} else if(isToken(OBJECT)){
+			objectDef(isCase)
+		} else if(isToken(CLASS)){
+			classDef(isCase)
+		} else {
+			return false
 		}
+		true
 	}
 
 	def topStatement(): Unit = {
