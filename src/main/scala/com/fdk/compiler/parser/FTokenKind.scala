@@ -152,6 +152,8 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case VAL extends FTokenKind("VAL", FTag.DEFAULT)
 	case OVERRIDE extends FTokenKind("OVERRIDE", FTag.DEFAULT)
 	case FAT_ARROW extends FTokenKind("FAT_ARROW", FTag.DEFAULT)
+	case LEFT_ARROW extends FTokenKind("LEFT_ARROW", FTag.DEFAULT)
+	case RIGHT_ARROW extends FTokenKind("RIGHT_ARROW", FTag.DEFAULT)
 	case MULT extends FTokenKind("MULT", FTag.DEFAULT)
 
 	case PIPE extends FTokenKind("PIPE", FTag.DEFAULT)
