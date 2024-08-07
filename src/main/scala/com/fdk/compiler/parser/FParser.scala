@@ -49,14 +49,14 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def isTokenLaOneOf(n: Int, kinds: FTokenKind*): Boolean = {
 		kinds.contains(lookAhead(n))
 	}
-	
+
 	def eqTokenPrefix(prefix: FTokenKind*): Boolean = {
 		for (i <- 0 until prefix.length) {
 			if (lookAhead(i) != prefix(i)) return false
 		}
 		true
 	}
-	
+
 	def isToken(kind: FTokenKind): Boolean = {
 		token.kind == kind
 	}
@@ -395,20 +395,61 @@ class FParser(lexer: IFLexer) extends IFParser {
 		}
 	}
 
-	/*
-	expr1
-			 : 'if' '(' expr ')' NL* expr ('else' expr)?
-			 | 'while' '(' expr ')' NL* expr
-			 | 'try' expr ('catch' expr)? ('finally' expr)?
-			 | 'do' expr 'while' '(' expr ')'
-			 | 'for' ('(' enumerators ')' | '{' enumerators '}') 'yield'? expr
-			 | 'throw' expr
-			 | 'return' expr?
-			 | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
-			 | simpleExpr1 argumentExprs '=' expr
-			 | postfixExpr ascription?
-			 | postfixExpr 'match' '{' caseClauses '}'
-	 */
+	def simpleExpr(): Boolean = {
+		if(isToken(NEW)){
+
+			return true
+		} else if(isToken(LCURL)){
+
+			return true
+		}
+		false
+	}
+	def simpleExpr1():Unit = {
+		if(literal() || stableId() || isToken(UNDERSCORE)){
+			next()
+			simpleExpr1Rest()
+		} else if(isToken(LPAREN)){
+			while({
+				next()
+				expr()
+				isToken(COMMA)
+			})()
+			accept(RPAREN)
+			simpleExpr1Rest()
+		} else if(simpleExpr()){
+			if(isToken(DOT)){
+				next()
+				accept(ID)
+			} else if(isToken(LBRACKET)){
+				types()
+				accept(RBRACKET)
+			}
+			simpleExpr1Rest()
+		}
+	}
+
+	def simpleExpr1Rest(): Unit = {
+		if(isToken(UNDERSCORE)){
+			next()
+			simpleExpr1Rest2()
+		} else if(isTokenOneOf(DOT, LBRACKET)){
+			simpleExpr1Rest2()
+		} else if(isTokenOneOf(LPAREN, LCURL)){
+			argumentExprs()
+		}
+	}
+
+	def simpleExpr1Rest2(): Unit = {
+		if (isToken(DOT)) {
+			next()
+			ident()
+		} else if (isToken(LBRACKET)) {
+			next()
+			types()
+			accept(RBRACKET)
+		}
+	}
 	def expr1(): Unit = {
 		token.kind match {
 			case IF => {
@@ -474,31 +515,39 @@ class FParser(lexer: IFLexer) extends IFParser {
 		expr() // postfixExpr (':' | '_' | '*')?
 	}
 
-	def expr():Unit = {
-		if (isTokenOneOf(ID, UNDERSCORE)) {
-			next()
-			if (isToken(COLON)) {
-				next()
-				_type()
-			}
-			while (isToken(COMMA)) {
+	def bindings(): Boolean = {
+		if(isToken(LPAREN)) {
+			while ({
 				next()
 				acceptOneOf(ID, UNDERSCORE)
-				if (isToken(COLON)) {
+				if(isToken(COLON)){
 					next()
 					_type()
 				}
-			}
+				isToken(COMMA)
+			}) {}
+			return true
+		}
+		false
+	}
+	
+	def expr(): Boolean = {
+		if(bindings()){
 			accept(FAT_ARROW)
 			expr()
 		} else if (isToken(IMPLICIT)) {
 			acceptOneOf(ID, UNDERSCORE)
 			accept(FAT_ARROW)
 			expr()
+		} else if(isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)){
+			next()
+			accept(FAT_ARROW)
+			expr()
 		} else {
 			expr1()
 		}
 	}
+	
 	def argumentExprs():Unit = {
 		if (isTokenOneOf(LPAREN, LCURL)) {
 			val left = token
@@ -612,7 +661,9 @@ class FParser(lexer: IFLexer) extends IFParser {
 	def templateStatV2():Unit = {
 		if(literal()){
 		}
-		if(stableId()){
+		else if(stableId()){
+		}
+		else if(bindings()){
 		}
 
 
