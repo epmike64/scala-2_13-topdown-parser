@@ -2,12 +2,12 @@ package com.fdk.compiler.parser
 
 import com.fdk.compiler.FToken
 import com.fdk.compiler.parser.FTokenKind.*
-import com.fdk.compiler.tree.{FExpression, FImport, FModifiers, FPackageDecl, FTree, FTreeMaker}
+//import com.fdk.compiler.tree.{FExpression, FImport, FModifiers, FPackageDecl, FTree, FTreeMaker}
 import com.fdk.compiler.util.FName
 
 import scala.collection.mutable.ArrayBuffer
 
-class FParser(lexer: IFLexer) extends IFParser {
+class FParser(lexer: IFLexer) {//extends IFParser {
 
 	private[this] var token: FToken = lexer.next
 
@@ -398,10 +398,10 @@ class FParser(lexer: IFLexer) extends IFParser {
 
 	def simpleExpr(): Boolean = {
 		if (isToken(NEW)) {
-
+			//(classTemplate | templateBody)
 			return true
 		} else if (isToken(LCURL)) {
-
+			//blockExpr
 			return true
 		}
 		false
@@ -456,6 +456,43 @@ class FParser(lexer: IFLexer) extends IFParser {
 			accept(RBRACKET)
 		}
 	}
+	
+	def prefixExpr(): Boolean = {
+		if(isTokenOneOf(SUB, PLUS, BANG, TILDE)){
+			next()
+		}
+		if(simpleExpr()){
+			return true
+		} else if(simpleExpr1()){
+			if(isToken(UNDERSCORE)){
+				next()
+			}
+			return true
+		}
+		false
+	}
+	
+	def infixExpr(): Boolean = {
+		if(prefixExpr()){
+			if(isToken(ID)) {
+				while ( {
+					next()
+					prefixExpr()
+					isToken(ID)
+				}) {}
+			}
+			return true
+		}
+		false
+	}
+	
+	def postfixExpr(): Boolean = {
+		if(infixExpr()){
+			
+			return true
+		}
+		false
+	}
 
 	def expr1(): Unit = {
 		if (isToken(IF)) {
@@ -507,319 +544,319 @@ class FParser(lexer: IFLexer) extends IFParser {
 			expr()
 		} else if (isToken(RETURN)) {
 			//expr()
-		} else if(simpleExpr1()){
-			
-
-		//	    | ((simpleExpr | simpleExpr1 '_'?) '.')? Id '=' expr
-		//		| simpleExpr1 argumentExprs '=' expr
-		//		| postfixExpr ascription?
-		//		| postfixExpr 'match' '{' caseClauses '}'
+		} else if (simpleExpr1()) {
+		
+		} else if (postfixExpr()) {
+		}
 	}
-}
 
-def args(): Unit = {
-	expr() // postfixExpr (':' | '_' | '*')?
-}
+	def args(): Unit = {
+		expr() // postfixExpr (':' | '_' | '*')?
+	}
 
-def bindings(): Boolean = {
-	if (isToken(LPAREN)) {
-		while ( {
-			next()
-			acceptOneOf(ID, UNDERSCORE)
-			if (isToken(COLON)) {
+	def bindings(): Boolean = {
+		if (isToken(LPAREN)) {
+			while ( {
 				next()
-				_type()
-			}
-			isToken(COMMA)
-		}) {}
-		return true
+				acceptOneOf(ID, UNDERSCORE)
+				if (isToken(COLON)) {
+					next()
+					_type()
+				}
+				isToken(COMMA)
+			}) {}
+			return true
+		}
+		false
 	}
-	false
-}
 
-def expr(): Boolean = {
-	if (bindings()) {
-		accept(FAT_ARROW)
-		expr()
-	} else if (isToken(IMPLICIT)) {
-		acceptOneOf(ID, UNDERSCORE)
-		accept(FAT_ARROW)
-		expr()
-	} else if (isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)) {
-		next()
-		accept(FAT_ARROW)
-		expr()
-	} else {
-		expr1()
+	def expr(): Boolean = {
+		if (bindings()) {
+			accept(FAT_ARROW)
+			expr()
+		} else if (isToken(IMPLICIT)) {
+			acceptOneOf(ID, UNDERSCORE)
+			accept(FAT_ARROW)
+			expr()
+		} else if (isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)) {
+			next()
+			accept(FAT_ARROW)
+			expr()
+		} else {
+			expr1()
+		}
 	}
-}
 
-def argumentExprs(): Unit = {
-	if (isTokenOneOf(LPAREN, LCURL)) {
-		val left = token
-		next()
-		args() // blockExpr()
-		accept(if (left.kind == LPAREN) RPAREN else RCURL)
+	def argumentExprs(): Unit = {
+		if (isTokenOneOf(LPAREN, LCURL)) {
+			val left = token
+			next()
+			args() // blockExpr()
+			accept(if (left.kind == LPAREN) RPAREN else RCURL)
+		}
 	}
-}
 
-def constr(): Unit = {
-	simpleType()
-	argumentExprs() //*
-}
-
-def classParents(): Unit = {
-	constr()
-	while (isToken(WITH)) {
-		next()
+	def constr(): Unit = {
 		simpleType()
+		argumentExprs() //*
 	}
-}
-def patVarDef(): Unit = {
-	if (isToken(VAL)) {
-		//patDef
-	} else if (isToken(VAR)) {
-		//varDef
-	} else {
-		reportSyntaxError(token.pos, "expected", VAL, VAR)
+
+	def classParents(): Unit = {
+		constr()
+		while (isToken(WITH)) {
+			next()
+			simpleType()
+		}
 	}
-}
-def earlyDefs(): Unit = {
-	accept(LCURL)
-	modifiers()
-	patVarDef()
-	accept(RCURL)
-	accept(WITH)
-}
 
-def funDef(): Unit = {
-	accept(DEF)
-	ident()
-	typeParamClause()
-	paramType()
-	if (isToken(COLON)) {
-		next()
-		_type()
+	def patVarDef(): Unit = {
+		if (isToken(VAL)) {
+			//patDef
+		} else if (isToken(VAR)) {
+			//varDef
+		} else {
+			reportSyntaxError(token.pos, "expected", VAL, VAR)
+		}
 	}
-	accept(EQ)
-	expr()
-}
 
-def typeDcl(): Unit = {
-
-}
-
-def defDcl(): Unit = {
-	//def_
-	//dcl
-	if (isTokenOneOf(VAL, VAR)) {
+	def earlyDefs(): Unit = {
+		accept(LCURL)
+		modifiers()
 		patVarDef()
-	} else if (isToken(DEF)) {
-		funDef()
-	} else if (isTokenOneOf(CASE, CLASS, OBJECT, TRAIT)) {
-		tmplDef()
-	} else if (isToken(TYPE)) {
-		typeDcl()
+		accept(RCURL)
+		accept(WITH)
 	}
-	else {
-		reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+
+	def funDef(): Unit = {
+		accept(DEF)
+		ident()
+		typeParamClause()
+		paramType()
+		if (isToken(COLON)) {
+			next()
+			_type()
+		}
+		accept(EQ)
+		expr()
 	}
-}
 
-def valDefDcl(): Unit = {
-	accept(VAL)
-}
+	def typeDcl(): Unit = {
 
-def defDclV2(): Unit = {
-	token.kind match
-		case VAL | VAR => ???
-		case DEF => ???
-		case TYPE => ???
-		case CASE | CLASS | OBJECT | TRAIT => ???
-		case _ => {
+	}
+
+	def defDcl(): Unit = {
+		//def_
+		//dcl
+		if (isTokenOneOf(VAL, VAR)) {
+			patVarDef()
+		} else if (isToken(DEF)) {
+			funDef()
+		} else if (isTokenOneOf(CASE, CLASS, OBJECT, TRAIT)) {
+			tmplDef()
+		} else if (isToken(TYPE)) {
+			typeDcl()
+		}
+		else {
 			reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
 		}
-}
-
-def templateStat(): Unit = {
-	if (isToken(IMPORT)) {
-		_import()
-	} else if (modifiers()) {
-		defDcl()
-	} else {
-		expr()
-	}
-}
-
-def literal(): Boolean = {
-	if (isToken(SUB) && isTokenLaOneOf(1, INT_LTR, FLOAT_LTR)) {
-		skip(2)
-		return true
-	} else if (isTokenOneOf(INT_LTR, FLOAT_LTR, STR_LTR, CHR_LTR, BOOL_LTR, NULL)) {
-		next()
-		return true
-	}
-	false
-}
-/*
-State 332
- */
-def templateStatV2(): Unit = {
-	if (literal()) {
-	}
-	else if (stableId()) {
-	}
-	else if (bindings()) {
 	}
 
+	def valDefDcl(): Unit = {
+		accept(VAL)
+	}
 
-	token.kind match {
-		case IMPORT => _import()
-		case VAL | VAR => valDefDcl()
-		case DEF => funDef()
-		case TYPE => typeDcl()
-		case CASE | CLASS | OBJECT | TRAIT => tmplDef()
-		case _ => {
-			reportSyntaxError(token.pos, "expected", IMPORT, VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+	def defDclV2(): Unit = {
+		token.kind match
+			case VAL | VAR => ???
+			case DEF => ???
+			case TYPE => ???
+			case CASE | CLASS | OBJECT | TRAIT => ???
+			case _ => {
+				reportSyntaxError(token.pos, "expected", VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+			}
+	}
+
+	def templateStat(): Unit = {
+		if (isToken(IMPORT)) {
+			_import()
+		} else if (modifiers()) {
+			defDcl()
+		} else {
+			expr()
 		}
 	}
-}
-/*
-State 196
- */
-def templateBody(): Unit = {
-	accept(LCURL)
-	if (isTokenOneOf(ID, THIS)) {
-		//selfType
+
+	def literal(): Boolean = {
+		if (isToken(SUB) && isTokenLaOneOf(1, INT_LTR, FLOAT_LTR)) {
+			skip(2)
+			return true
+		} else if (isTokenOneOf(INT_LTR, FLOAT_LTR, STR_LTR, CHR_LTR, BOOL_LTR, NULL)) {
+			next()
+			return true
+		}
+		false
+	}
+
+	/*
+	State 332
+	 */
+	def templateStatV2(): Unit = {
+		if (literal()) {
+		}
+		else if (stableId()) {
+		}
+		else if (bindings()) {
+		}
+
+
+		token.kind match {
+			case IMPORT => _import()
+			case VAL | VAR => valDefDcl()
+			case DEF => funDef()
+			case TYPE => typeDcl()
+			case CASE | CLASS | OBJECT | TRAIT => tmplDef()
+			case _ => {
+				reportSyntaxError(token.pos, "expected", IMPORT, VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+			}
+		}
+	}
+
+	/*
+	State 196
+	 */
+	def templateBody(): Unit = {
+		accept(LCURL)
+		if (isTokenOneOf(ID, THIS)) {
+			//selfType
+			next()
+		}
+		while (!isToken(RCURL)) {
+			next()
+			templateStat() //+
+		}
 		next()
 	}
-	while (!isToken(RCURL)) {
-		next()
-		templateStat() //+
-	}
-	next()
-}
 
-def classDef(isCase: Boolean): Unit = {
+	def classDef(isCase: Boolean): Unit = {
 
-	accept(CLASS)
-	val name = ident()
+		accept(CLASS)
+		val name = ident()
 
-	if (isToken(LBRACKET)) {
-		next()
-		variantTypeParam()
-		while (isToken(COMMA)) {
+		if (isToken(LBRACKET)) {
 			next()
 			variantTypeParam()
-		}
-		accept(RBRACKET)
-	}
-
-	token.kind match {
-		case PRIVATE | PROTECTED =>
-			next()
-			if (token.kind == LBRACKET) {
-				accessQualifier()
-			}
-	}
-
-	if (isToken(LPAREN)) {
-		next()
-		if (!isToken(RPAREN)) {
-			next()
-			classParam()
 			while (isToken(COMMA)) {
 				next()
-				classParam()
+				variantTypeParam()
 			}
+			accept(RBRACKET)
 		}
-		accept(RPAREN)
-	}
 
-	//		if (isToken(EXTENDS)) {
-	//			if(isToken(LCURL)){
-	//				earlyDefs()
-	//			}
-	//			classParents()
-	//		}
-	templateBody()
-}
+		token.kind match {
+			case PRIVATE | PROTECTED =>
+				next()
+				if (token.kind == LBRACKET) {
+					accessQualifier()
+				}
+		}
 
-def objectDef(isCase: Boolean): Unit = {
-	val startPos = token.pos
-	accept(OBJECT)
-	val name = ident()
-	//		val od = F.at(startPos).makeClassDecl()
-	//		endPosTable(od) = token.pos
-	//		od
-}
-
-def traitDef(): Unit = {
-	val startPos = token.pos
-	accept(TRAIT)
-	val name = ident()
-
-}
-
-def accessQualifier(): Unit = {
-	accept(LBRACKET)
-	token.kind match {
-		case ID => ident()
-		case THIS => next()
-	}
-	accept(RBRACKET)
-
-}
-
-def modifiers(): Boolean = {
-	var isModifier = false
-	while (token.kind == ABSTRACT || token.kind == FINAL || token.kind == SEALED || token.kind == IMPLICIT || token.kind == LAZY || token.kind == OVERRIDE || token.kind == PRIVATE || token.kind == PROTECTED) {
-		isModifier = true
-		next()
-	}
-	isModifier
-}
-
-
-def tmplDef(): Unit = {
-	token.kind match {
-		case CASE =>
+		if (isToken(LPAREN)) {
 			next()
-			token.kind match {
-				case CLASS => classDef(true)
-				case OBJECT => objectDef(true)
-				case _ => {
-					reportSyntaxError(token.pos, "expected", CLASS)
+			if (!isToken(RPAREN)) {
+				next()
+				classParam()
+				while (isToken(COMMA)) {
+					next()
+					classParam()
 				}
 			}
-		case CLASS => classDef(false)
-		case OBJECT => objectDef(false)
-		case TRAIT => traitDef()
-		case _ => {
-			reportSyntaxError(token.pos, "expected", CLASS)
+			accept(RPAREN)
+		}
+
+		//		if (isToken(EXTENDS)) {
+		//			if(isToken(LCURL)){
+		//				earlyDefs()
+		//			}
+		//			classParents()
+		//		}
+		templateBody()
+	}
+
+	def objectDef(isCase: Boolean): Unit = {
+		val startPos = token.pos
+		accept(OBJECT)
+		val name = ident()
+		//		val od = F.at(startPos).makeClassDecl()
+		//		endPosTable(od) = token.pos
+		//		od
+	}
+
+	def traitDef(): Unit = {
+		val startPos = token.pos
+		accept(TRAIT)
+		val name = ident()
+
+	}
+
+	def accessQualifier(): Unit = {
+		accept(LBRACKET)
+		token.kind match {
+			case ID => ident()
+			case THIS => next()
+		}
+		accept(RBRACKET)
+
+	}
+
+	def modifiers(): Boolean = {
+		var isModifier = false
+		while (token.kind == ABSTRACT || token.kind == FINAL || token.kind == SEALED || token.kind == IMPLICIT || token.kind == LAZY || token.kind == OVERRIDE || token.kind == PRIVATE || token.kind == PROTECTED) {
+			isModifier = true
+			next()
+		}
+		isModifier
+	}
+
+
+	def tmplDef(): Unit = {
+		token.kind match {
+			case CASE =>
+				next()
+				token.kind match {
+					case CLASS => classDef(true)
+					case OBJECT => objectDef(true)
+					case _ => {
+						reportSyntaxError(token.pos, "expected", CLASS)
+					}
+				}
+			case CLASS => classDef(false)
+			case OBJECT => objectDef(false)
+			case TRAIT => traitDef()
+			case _ => {
+				reportSyntaxError(token.pos, "expected", CLASS)
+			}
 		}
 	}
-}
 
-def topStatement(): Unit = {
-	if (isToken(IMPORT)) _import()
-	else {
-		modifiers()
-		tmplDef()
+	def topStatement(): Unit = {
+		if (isToken(IMPORT)) _import()
+		else {
+			modifiers()
+			tmplDef()
+		}
 	}
-}
 
-def topStatements(): Unit = {
-	while (token.kind != EOF) {
-		topStatement()
+	def topStatements(): Unit = {
+		while (token.kind != EOF) {
+			topStatement()
+		}
 	}
-}
 
-def compilationUnit(): Unit = {
-	while (token.kind == PACKAGE) {
-		_package()
+	def compilationUnit(): Unit = {
+		while (token.kind == PACKAGE) {
+			_package()
+		}
+		topStatements()
 	}
-	topStatements()
-}
 }
 
