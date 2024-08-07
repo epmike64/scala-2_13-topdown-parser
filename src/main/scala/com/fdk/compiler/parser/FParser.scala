@@ -159,7 +159,23 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 			simpleType()
 		}
 	}
-
+	
+	def refineStat(): Boolean = {
+		if(dcl()){
+			
+		} else {
+			return false
+		}
+		true
+	}
+	def refinement():Boolean = {
+		if(isToken(LCURL)){
+			refineStat()
+			accept(RCURL)
+			return true
+		}
+		false
+	}
 	def compoundType(): Unit = {
 		annotType()
 		while (token.kind == WITH) {
@@ -658,6 +674,28 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 	}
 
+	def resultExprRest():Boolean = {
+		accept(FAT_ARROW)
+		block()
+		true
+	}
+	
+	def resultExpr(): Boolean = {
+		if (bindings()) {
+			resultExprRest()
+		} else if(isTokenPrefix(IMPLICIT, ID) || isToken(ID) || isToken(UNDERSCORE)){
+			if(isToken(IMPLICIT)) next()
+			next()
+			accept(COLON)
+			compoundType()
+			resultExprRest()
+		} else if(expr1()){
+		} else {
+			return false
+		}
+		true
+	}
+	
 	def argumentExprs(): Boolean = {
 		if (isTokenOneOf(LPAREN, LCURL)) {
 			val left = token
@@ -782,18 +820,6 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		true
 	}
 
-	def typeDef(): Boolean = {
-		if (isToken(TYPE)) {
-			next()
-			ident()
-			typeParamClause()
-			accept(EQ)
-			_type()
-			return true
-		}
-		false
-	}
-
 	def defDcl(): Boolean = {
 		if (isToken(VAL)) {
 			if (valDcl() || patVarDef()) {
@@ -804,24 +830,32 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 				return true
 			}
 		} else if (isToken(DEF)) {
-			if(funDcl() || funDef()){
+			if(funDclDef()){
 				return true
 			}
 		} else if (isToken(TYPE)) {
-			if(typeDcl() || typeDef()){
+			if(typeDclDef()){
 				return true
 			}
 		}
 		false
 	}
 	
-
-	def typeDcl(): Boolean = {
+	def typeDclDef(): Boolean = {
 		if (isToken(TYPE)) {
 			next()
 			ident()
 			typeParamClause()
-			if (isTokenOneOf(LOWER_BOUND, UPPER_BOUND)) {
+			if(isToken(EQ)){
+				next()
+				_type()
+				return true
+			}
+			if (isToken(LOWER_BOUND)) {
+				next()
+				_type()
+			}
+			if(isToken(UPPER_BOUND)){
 				next()
 				_type()
 			}
@@ -970,17 +1004,15 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		} else if (isToken(DEF)) {
 			return funDclDef()
 		} else if (isToken(TYPE)) {
-			return typeDcl()
-		} else {
-			return false
-		}
-		true
+			return typeDclDef()
+		} 
+		false
 	}
 
 	def _def(): Boolean = {
 		if (patVarDef()) {
 		} else if (funDclDef()) {
-		} else if (typeDef()) {
+		} else if (typeDclDef()) {
 		} else if (tmplDef()) {
 		} else {
 			return false
@@ -1003,8 +1035,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 			}
 	}
 
-	def resultExpr(): Unit = {
-	}
+
 
 	def block(): Unit = {
 		blockStats()
@@ -1050,15 +1081,19 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		false
 	}
 
-	def blockStats(): Unit = {
+	def blockStats(): Boolean = {
 		if (_import()) {
 		} else if (localModifier()) {
 			tmplDef()
 		} else if (isTokenOneOf(IMPLICIT, LAZY)) {
+			next()
 			_def()
+		} else if(_def()){
+		} else if(expr1()){
 		} else {
-			expr1()
+			return false
 		}
+		true
 	}
 
 	def templateStat(): Boolean = {
