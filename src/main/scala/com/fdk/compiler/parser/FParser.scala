@@ -1099,7 +1099,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 	def templateStat(): Boolean = {
 		if (_import()) {
 		} else if (modifiers()) {
-			defDcl()
+			return defDcl()
 		}
 		if (defDcl()) {
 		} else if (expr()) {
@@ -1119,45 +1119,34 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 		false
 	}
-
-	/*
-	State 332
-	 */
-	def templateStatV2(): Unit = {
-		if (literal()) {
-		}
-		else if (stableId()) {
-		}
-		else if (bindings()) {
-		}
-
-
-		token.kind match {
-			case IMPORT => _import()
-			case VAL | VAR => valDefDcl()
-			case DEF => funDef()
-			case TYPE => typeDcl()
-			case CASE | CLASS | OBJECT | TRAIT => tmplDef()
-			case _ => {
-				reportSyntaxError(token.pos, "expected", IMPORT, VAL, VAR, DEF, CASE, CLASS, OBJECT, TRAIT, TYPE)
+	
+	def selfType(): Boolean = {
+		if(isToken(ID)){
+			if(isToken(COLON)){
+				next()
+				_type()
 			}
+		} else if(isToken(THIS)){
+			accept(COLON)
+			_type()
+		} else {
+			return false
 		}
+		accept(FAT_ARROW)
+		true
 	}
 
-	/*
-	State 196
-	 */
-	def templateBody(): Unit = {
-		accept(LCURL)
-		if (isTokenOneOf(ID, THIS)) {
-			//selfType
-			next()
+	def templateBody(): Boolean = {
+		if (isToken(LCURL)) {
+			selfType()
+			while (!isToken(RCURL)) {
+				templateStat() //+
+			}
+			accept(RCURL)
+		} else {
+			return false
 		}
-		while (!isToken(RCURL)) {
-			next()
-			templateStat() //+
-		}
-		next()
+		true
 	}
 
 	def classDef(isCase: Boolean): Unit = {
