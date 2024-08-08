@@ -21,6 +21,25 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		else throw new IllegalArgumentException("n must be positive")
 	}
 
+	def slide(kind: FTokenKind): Int = {
+		var n = 0
+		while (token.kind == kind) {
+			n += 1
+			next()
+		}
+		n
+	}
+
+	def acceptCount(kind: FTokenKind, count: Int): Unit = {
+		for (i <- 0 until count) {
+			if (token.kind == kind) next()
+			else {
+				setErrorEndPos(token.pos)
+				reportSyntaxError(token.pos, "expected", kind)
+			}
+		}
+	}
+
 	def lookAhead(n: Int): FToken = {
 		if (n == 0) token
 		else if (n > 0) lexer.lookAhead(n)
@@ -62,24 +81,9 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		token.kind == kind
 	}
 
-	def eatUp(kind: FTokenKind): Int = {
-		var n = 0
-		while (token.kind == kind) {
-			n += 1
-			next()
-		}
-		n
-	}
 
-	def eatUpCount(kind: FTokenKind, count: Int): Unit = {
-		for (i <- 0 until count) {
-			if (token.kind == kind) next()
-			else {
-				setErrorEndPos(token.pos)
-				reportSyntaxError(token.pos, "expected", kind)
-			}
-		}
-	}
+
+	
 
 	def isTokenOneOf(kinds: FTokenKind*): Boolean = {
 		kinds.contains(token.kind)
@@ -195,13 +199,13 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 	}
 
 	def simpleType(): Unit = {
-		val leftPar = eatUp(LPAREN)
+		val leftPar = slide(LPAREN)
 		stableId()
-		eatUpCount(RPAREN, leftPar)
+		acceptCount(RPAREN, leftPar)
 	}
 
 	def _type(): Unit = {
-		val leftPar = eatUp(LPAREN)
+		val leftPar = slide(LPAREN)
 		simpleType()
 		if (isToken(FAT_ARROW)) {
 			next()
@@ -215,7 +219,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 				_type()
 			}
 		}
-		eatUpCount(RPAREN, leftPar)
+		acceptCount(RPAREN, leftPar)
 	}
 
 	def paramType(): Unit = {
@@ -1211,7 +1215,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 		false
 	}
-	
+
 	def traitTemplateOpt(): Boolean = {
 		//Not completely correct according to the grammar
 		if (isToken(EXTENDS)) {
@@ -1224,7 +1228,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 		false
 	}
-	
+
 	def classDef(isCase: Boolean): Boolean = {
 		if (isToken(CLASS)) {
 			val name = ident()
