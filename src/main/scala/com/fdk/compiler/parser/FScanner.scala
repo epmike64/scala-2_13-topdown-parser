@@ -9,10 +9,10 @@ class FScanner(val tokenizer: FTokenizer) extends IFLexer {
 	private[this] var _token: FToken = FToken.DUMMY
 	private[this] var _prevToken: FToken = FToken.DUMMY
 	
-	override def prevToken: FToken = _prevToken
+	override def prev: FToken = _prevToken
 	override def token: FToken = _token
 	
-	override def nextToken(): Unit = {
+	override def next(): FToken = {
 		_prevToken = _token
 		if (_savedTokens.isEmpty) 
 			_token = tokenizer.readToken()

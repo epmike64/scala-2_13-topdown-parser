@@ -12,23 +12,13 @@ trait IFLexer {
 	 */
 	def token: FToken
 	
-	/**
-	 * Return token with given lookahead.
-	 */
+	def slide(kind: FTokenKind): FToken
+
 	def lookAhead(n: Int): FToken
-
-	/**
-	 * Return the last character position of the previous token.
-	 */
+	
 	def prev: FToken
-
-	/**
-	 * Return the position where a lexical error occurred;
-	 */
+	
 	def errPos: Int
-
-	/**
-	 * Set the position where a lexical error occurred;
-	 */
+	
 	def errPos(pos: Int): Unit
 }
