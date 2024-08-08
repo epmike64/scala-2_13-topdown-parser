@@ -226,26 +226,33 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		}
 	}
 
-	def classParam(): Unit = {
+	def classParam(): Boolean = {
 		modifiers()
-		if (isTokenOneOf(VAR, VAL)) next()
-		ident()
-		accept(COLON)
-		paramType()
-		if (token.kind == EQ) {
+		if (isTokenOneOf(VAR, VAL) && isTokenLaOneOf(1, ID)) {
 			next()
-			expr()
+			ident()
+			accept(COLON)
+			paramType()
+			if (token.kind == EQ) {
+				next()
+				expr()
+			}
+			return true
 		}
+		false
 	}
 
-	def typeParamClause(): Unit = {
-		accept(LBRACKET)
-		typeParam()
-		while (token.kind == COMMA) {
-			next()
-			typeParam()
+	def typeParamClause(): Boolean = {
+		if(isToken(LBRACKET)) {
+			variantTypeParam()
+			while (token.kind == COMMA) {
+				next()
+				variantTypeParam()
+			}
+			accept(RBRACKET)
+			return true
 		}
-		accept(RBRACKET)
+		false
 	}
 
 	def typeParam(): Unit = {
@@ -1073,9 +1080,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 	def accessModifier(): Boolean = {
 		if (isTokenOneOf(PRIVATE, PROTECTED)) {
 			next()
-			if (isToken(LBRACKET)) {
-				accessQualifier()
-			}
+			accessQualifier()
 			return true
 		}
 		false
@@ -1149,28 +1154,55 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		true
 	}
 
+	def classParamClause(): Boolean = {
+		if(isToken(LPAREN)){
+			next()
+			classParams()
+			accept(RPAREN)
+			return true
+		}
+		false
+	}
+	
+	def classParams(): Boolean = {
+		if(classParam()){
+			while(isToken(COMMA)){
+				next()
+				classParam()
+			}
+			return true
+		}
+		false
+	}
+	
+	def classParamClausesRest(): Boolean= {
+		if(isTokenPrefix(LPAREN, IMPLICIT)){
+			skip(2)
+			classParams()
+			return true
+		}
+		false
+	}
+
+	def classParamClauses():Boolean = {
+		if(classParamClausesRest()){
+			return true
+		}
+		if(classParamClause()){
+			while(classParamClause()){}
+			classParamClausesRest()
+			return true
+		}
+		false
+	}
+	
 	def classDef(isCase: Boolean): Unit = {
 
 		accept(CLASS)
 		val name = ident()
-
-		if (isToken(LBRACKET)) {
-			next()
-			variantTypeParam()
-			while (isToken(COMMA)) {
-				next()
-				variantTypeParam()
-			}
-			accept(RBRACKET)
-		}
-
-		token.kind match {
-			case PRIVATE | PROTECTED =>
-				next()
-				if (token.kind == LBRACKET) {
-					accessQualifier()
-				}
-		}
+		typeParamClause()
+		accessModifier()
+		classParamClauses()
 
 		if (isToken(LPAREN)) {
 			next()
@@ -1210,13 +1242,14 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 
 	}
 
-	def accessQualifier(): Unit = {
-		accept(LBRACKET)
-		token.kind match {
-			case ID => ident()
-			case THIS => next()
+	def accessQualifier(): Boolean = {
+		if(isToken(LBRACKET)){
+			next()
+			acceptOneOf(ID, THIS)
+			accept(RBRACKET)
+			return true
 		}
-		accept(RBRACKET)
+		false
 	}
 
 	def tmplDef(): Boolean = {
