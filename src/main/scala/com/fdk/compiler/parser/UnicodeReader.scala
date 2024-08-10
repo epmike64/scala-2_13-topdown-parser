@@ -6,6 +6,7 @@ import com.fdk.compiler.util.ArrayUtils
 import java.nio.CharBuffer
 import java.util
 import java.util.Arrays
+import scala.jdk.CollectionConverters.*
 
 object UnicodeReader {
 	lazy val surrogatesSupported = {
@@ -20,7 +21,7 @@ object UnicodeReader {
 
 	def apply(input: CharBuffer): UnicodeReader = {
 		require(input != null, "input must not be null")
-		create(input, input.limit)
+		create(input.toString().toCharArray(), input.limit)
 	}
 	
 	private def create(input: Array[Char], inputLen: Int): UnicodeReader = {
@@ -35,8 +36,8 @@ object UnicodeReader {
 	}
 }
 
-class UnicodeReader private (val buf: Array[Char], val bufLen: Int) {
-	buf(bufLen) = LayoutCharacters.EOI
+class UnicodeReader private (val buf: Array[Char], val buflen: Int) {
+	buf(buflen) = LayoutCharacters.EOI
 	var bp = -1
 	var unicodeConversionBp = -1
 	var ch: Char = _
@@ -44,7 +45,7 @@ class UnicodeReader private (val buf: Array[Char], val bufLen: Int) {
 	var sp = 0
 
 	def scanChar(): Unit = {
-		if (bp < bufLen) {
+		if (bp < buflen) {
 			bp += 1
 			ch = buf(bp)
 			if (ch == '\\') {
@@ -90,7 +91,7 @@ class UnicodeReader private (val buf: Array[Char], val bufLen: Int) {
 					ch == 'u'
 				}) {}
 				val limit = bp + 3
-				if (limit < bufLen) {
+				if (limit < buflen) {
 					var d = digit(bp, 16)
 					var code = d
 					while (bp < limit && d >= 0) {
@@ -153,8 +154,8 @@ class UnicodeReader private (val buf: Array[Char], val bufLen: Int) {
 	 * Unicode escape sequences are not translated.
 	 */
 	def getRawCharacters: Array[Char] = {
-		val chars = new Array[Char](bufLen)
-		System.arraycopy(buf, 0, chars, 0, bufLen)
+		val chars = new Array[Char](buflen)
+		System.arraycopy(buf, 0, chars, 0, buflen)
 		chars
 	}
 

@@ -1,14 +1,26 @@
 package com.fdk.compiler.parser
 
 enum FTokenKind(val name: String, val tag: FTag):
+	case LONGLITERAL extends FTokenKind(null, FTag.NUMERIC)
+	case FLOATLITERAL extends FTokenKind(null, FTag.NUMERIC)
+	case INTLITERAL extends FTokenKind(null, FTag.NUMERIC)
+	case DOUBLELITERAL extends FTokenKind(null, FTag.NUMERIC)
+	case CHARLITERAL extends FTokenKind(null, FTag.NUMERIC)
+	case STRINGLITERAL extends FTokenKind(null, FTag.STRING)
+	case TRUE extends FTokenKind("true", FTag.NAMED)
+	case FALSE extends FTokenKind("false", FTag.NAMED)
+	case NULL extends FTokenKind("null", FTag.NAMED)
+	case UNDERSCORE extends FTokenKind("_", FTag.NAMED)
+	case ID extends FTokenKind(null, FTag.NAMED)
+	case BOOLEAN extends FTokenKind("boolean", FTag.NAMED)
+	case ASSERT extends FTokenKind("assert", FTag.NAMED)
+	case BYTE extends FTokenKind("byte", FTag.NAMED)
+	case VOID extends FTokenKind("void", FTag.NAMED)
+
 	case EOF extends FTokenKind(null, FTag.DEFAULT)
 	case ERROR extends FTokenKind(null, FTag.DEFAULT)
-	case ID extends FTokenKind(null, FTag.NAMED)
 	case ABSTRACT extends FTokenKind("abstract", FTag.DEFAULT)
-	case ASSERT extends FTokenKind("assert", FTag.DEFAULT)
-	case BOOLEAN extends FTokenKind("boolean", FTag.DEFAULT)
 	case BREAK extends FTokenKind("break", FTag.DEFAULT)
-	case BYTE extends FTokenKind("byte", FTag.NAMED)
 	case CASE extends FTokenKind("case", FTag.DEFAULT)
 	case CATCH extends FTokenKind("catch", FTag.DEFAULT)
 	case CHAR extends FTokenKind("char", FTag.NAMED)
@@ -31,6 +43,7 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case IMPORT extends FTokenKind("import", FTag.DEFAULT)
 	case INSTANCEOF extends FTokenKind("instanceof", FTag.DEFAULT)
 	case INT extends FTokenKind("int", FTag.NAMED)
+	case THIS extends FTokenKind("this", FTag.NAMED)
 
 	case LONG extends FTokenKind("long", FTag.DEFAULT)
 	case NEW extends FTokenKind("new", FTag.DEFAULT)
@@ -45,12 +58,10 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case SUPER extends FTokenKind("super", FTag.DEFAULT)
 	case SWITCH extends FTokenKind("switch", FTag.DEFAULT)
 	case SYNCHRONIZED extends FTokenKind("synchronized", FTag.DEFAULT)
-	case THIS extends FTokenKind("this", FTag.DEFAULT)
 	case THROW extends FTokenKind("throw", FTag.DEFAULT)
 	case THROWS extends FTokenKind("throws", FTag.DEFAULT)
 	case TRANSIENT extends FTokenKind("transient", FTag.DEFAULT)
 	case TRY extends FTokenKind("try", FTag.DEFAULT)
-	case VOID extends FTokenKind("void", FTag.DEFAULT)
 	case VOLATILE extends FTokenKind("volatile", FTag.DEFAULT)
 	case WHILE extends FTokenKind("while", FTag.DEFAULT)
 	case LPAREN extends FTokenKind("(", FTag.DEFAULT)
@@ -121,7 +132,7 @@ enum FTokenKind(val name: String, val tag: FTag):
 	case OBJECT extends FTokenKind("OBJECT", FTag.DEFAULT)
 	
 	case GH_COLON extends FTokenKind("GH_COLON", FTag.DEFAULT)
-	case NULL extends FTokenKind("NULL", FTag.DEFAULT)
+
 	case IMPLICIT extends FTokenKind("IMPLICIT", FTag.DEFAULT)
 	case FORSOME extends FTokenKind("FORSOME", FTag.DEFAULT)
 
@@ -158,5 +169,4 @@ enum FTokenKind(val name: String, val tag: FTag):
 
 	case PIPE extends FTokenKind("PIPE", FTag.DEFAULT)
 	case DEF extends FTokenKind("DEF", FTag.DEFAULT)
-	case UNDERSCORE extends FTokenKind("UNDERSCORE", FTag.DEFAULT)
 	case CHR_LTR extends FTokenKind("CHR_LTR", FTag.STRING)

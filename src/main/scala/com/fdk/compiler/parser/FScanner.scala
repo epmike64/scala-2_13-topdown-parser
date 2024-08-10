@@ -1,38 +1,38 @@
 package com.fdk.compiler.parser
 
-import com.fdk.compiler.FToken
+import com.fdk.compiler.parser.FToken
+
+import java.nio.CharBuffer
 import scala.collection.mutable.ArrayBuffer
+
+
+object FScanner {
+	def apply(buf: CharBuffer): FScanner = {
+		new FScanner(FTokenizer(UnicodeReader(buf)))
+	}
+}
 
 class FScanner(val tokenizer: FTokenizer) extends IFLexer {
 
-	private[this] val _savedTokens = ArrayBuffer[FToken]()
-	private[this] var _token: FToken = FToken.DUMMY
-	private[this] var _prevToken: FToken = FToken.DUMMY
-	
-	override def prev: FToken = _prevToken
-	override def token: FToken = _token
-	
-	override def next(): FToken = {
-		_prevToken = _token
-		if (_savedTokens.isEmpty) 
-			_token = tokenizer.readToken()
-		else {
-			_token = _savedTokens.remove(0)
+	var token = FToken.DUMMY
+	var prevToken = FToken.DUMMY
+	val savedTokens = ArrayBuffer[FToken]()
+
+	override def next: FToken = {
+		prevToken = token
+		if (!savedTokens.isEmpty) {
+			token = savedTokens.remove(0)
 		}
-	}
-	
-	override def token(lookAhead: Int): FToken = {
-		if lookAhead == 0 then _token
-		else {
-			ensureLookAhead(lookAhead)
-			_savedTokens(lookAhead - 1)
-		}
+		else token = tokenizer.readToken()
 	}
 
-	private def ensureLookAhead(lookAhead: Int):Unit = {
-		for (i <- _savedTokens.size until _savedTokens.size + lookAhead) {
-			_savedTokens += tokenizer.readToken()
-		}
-	}
+	override def slide(kind: FTokenKind): FToken = ???
 
+	override def lookAhead(n: Int): FToken = ???
+
+	override def prev: FToken = ???
+
+	override def errPos: Int = ???
+
+	override def errPos(pos: Int): Unit = ???
 }
