@@ -5,10 +5,10 @@ import com.fdk.compiler.parser.FToken.FTokenKind.*
 
 class FParser(lexer: IFLexer) {
 
-	private[this] var token: FToken = lexer.next
+	private[this] var token: FToken = lexer.next()
 
 	def next(): Unit = {
-		token = lexer.next
+		token = lexer.next()
 	}
 
 	def skip(n: Int): Unit = {

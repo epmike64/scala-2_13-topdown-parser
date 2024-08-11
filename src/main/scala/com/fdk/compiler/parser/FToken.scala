@@ -1,7 +1,5 @@
 package com.fdk.compiler.parser
 
-import com.fdk.compiler.parser.FToken.FTokenKind
-
 object FToken {
 
 	enum FTokenTag {
@@ -197,6 +195,8 @@ object FToken {
 		tokens.getOrElse(name, FTokenKind.ID)
 	}
 }
+
+import com.fdk.compiler.parser.FToken.FTokenKind
 
 class FToken(val kind: FTokenKind, val pos: Int, val endPos: Int) {
 
