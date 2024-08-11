@@ -49,8 +49,7 @@ class FParser(lexer: IFLexer) {
 	def accept(kind: FTokenKind): Unit = {
 		if (token.kind == kind) next()
 		else {
-			setErrorEndPos(token.pos)
-			reportSyntaxError(token.pos, "expected", kind)
+			throw new IllegalArgumentException(s"Expected token $kind, but got ${token.kind}")
 		}
 	}
 
@@ -94,10 +93,8 @@ class FParser(lexer: IFLexer) {
 		//reporter.syntaxError(token.offset, msg)
 	}
 
-	def ident(): String = {
-		val name = token.name
+	def ident(): Unit = {
 		accept(ID)
-		name
 	}
 
 	def qualId(): Unit = {
@@ -1146,6 +1143,7 @@ class FParser(lexer: IFLexer) {
 
 	def templateBody(): Boolean = {
 		if (isToken(LCURL)) {
+			next()
 			selfType()
 			while (!isToken(RCURL)) {
 				templateStat() //+
@@ -1228,7 +1226,7 @@ class FParser(lexer: IFLexer) {
 
 	def classDef(isCase: Boolean): Boolean = {
 		if (isToken(CLASS)) {
-			val name = ident()
+			ident()
 			typeParamClause()
 			accessModifier()
 			classParamClauses()
@@ -1240,7 +1238,8 @@ class FParser(lexer: IFLexer) {
 
 	def objectDef(isCase: Boolean): Boolean = {
 		if (isToken(OBJECT)) {
-			val name = ident()
+			next()
+			ident()
 			classTemplateOpt()
 			return true
 		}
@@ -1249,7 +1248,7 @@ class FParser(lexer: IFLexer) {
 
 	def traitDef(): Boolean = {
 		if(isToken(TRAIT)) {
-			val name = ident()
+			ident()
 			typeParamClause()
 			traitTemplateOpt()
 			return true
