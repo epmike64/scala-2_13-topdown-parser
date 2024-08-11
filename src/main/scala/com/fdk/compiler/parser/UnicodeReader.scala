@@ -1,95 +1,90 @@
 package com.fdk.compiler.parser
 
-import com.fdk.compiler.util.LayoutCharacters
-import com.fdk.compiler.util.ArrayUtils
-
-import java.nio.CharBuffer
-import java.util
-import java.util.Arrays
-import scala.jdk.CollectionConverters.*
+import com.fdk.compiler.parser.LayoutChars.*
+import com.fdk.compiler.parser.UnicodeReader.surrogatesSupported
+import com.fdk.compiler.util.FArrUtil
 
 object UnicodeReader {
+
 	lazy val surrogatesSupported = {
 		try {
 			Character.isHighSurrogate('a')
 			true
 		} catch {
-			case ex: NoSuchMethodError =>
-				false
+			case _ => false
 		}
 	}
-
-	def apply(input: CharBuffer): UnicodeReader = {
-		require(input != null, "input must not be null")
-		create(input.toString().toCharArray(), input.limit)
-	}
-	
-	private def create(input: Array[Char], inputLen: Int): UnicodeReader = {
-		if (inputLen == input.length) {
-			if (input.length > 0 && Character.isWhitespace(input.last)) {
-				return new UnicodeReader(input, inputLen - 1)
-			} else {
-				return new UnicodeReader(Array.copyOf(input, inputLen + 1), inputLen)
-			}
-		}
-		new UnicodeReader(input, inputLen)
-	}
+	def apply(buf: Array[Char]): UnicodeReader = new UnicodeReader(buf)
 }
 
-class UnicodeReader private (val buf: Array[Char], val buflen: Int) {
-	buf(buflen) = LayoutCharacters.EOI
-	var bp = -1
+class UnicodeReader(val buf: Array[Char]) {
+
+	/** The buffer index of the last converted unicode character
+	 */
 	var unicodeConversionBp = -1
-	var ch: Char = _
-	var sbuf = Array[Char](128)
+	/** A character buffer for saved chars.
+	 */
+	var sbuf = new Array[Char](128)
 	var sp = 0
 
+	if(buf.length > 0 && Character.isWhitespace(buf(buf.length - 1))) {
+		buf(buf.length - 1) = EOI
+	} else {
+		buf :+ EOI
+	}
+
+	var ch = EOI
+	var bp = -1
+	val buflen = buf.length - 1
+
+	scanChar()
+
 	def scanChar(): Unit = {
-		if (bp < buflen) {
+		if(bp < buflen) {
 			bp += 1
 			ch = buf(bp)
-			if (ch == '\\') {
-				convertUnicode()
-			}
+			if (ch == '\\') convertUnicode()
 		}
 	}
 
+	/** Read next character in comment, skipping over double '\' characters.
+	 */
 	def scanCommentChar(): Unit = {
 		scanChar()
-		if (ch == '\\') {
-			if (peekChar == '\\' && !isUnicode) {
-				skipChar()
-			}
-			else {
-				convertUnicode()
-			}
-		}
+		if (ch == '\\') if (peekChar == '\\' && !isUnicode) skipChar()
+		else convertUnicode()
 	}
 
-
+	/** Append a character to sbuf.
+	 */
 	def putChar(ch: Char, scan: Boolean): Unit = {
-		sbuf = ArrayUtils.ensureCapacity(sbuf, sp)
+		sbuf = FArrUtil.ensureCapacity(sbuf, sp)
 		sbuf(sp) = ch
 		sp += 1
 		if (scan) scanChar()
 	}
 
-	def putChar(ch: Char): Unit = putChar(ch, false)
+	def putChar(ch: Char): Unit = {
+		putChar(ch, false)
+	}
 
-	def putChar(scan: Boolean): Unit = putChar(ch, scan)
+	def putChar(scan: Boolean): Unit = {
+		putChar(ch, scan)
+	}
 
-	def chars = new String(sbuf, 0, sp)
-
+	/** Convert unicode escape; bp points to initial '\' character
+	 * (Spec 3.3).
+	 */
 	def convertUnicode(): Unit = {
 		if (ch == '\\' && unicodeConversionBp != bp) {
 			bp += 1
 			ch = buf(bp)
 			if (ch == 'u') {
-				while ( {
+				while({
 					bp += 1
 					ch = buf(bp)
 					ch == 'u'
-				}) {}
+				}){}
 				val limit = bp + 3
 				if (limit < buflen) {
 					var d = digit(bp, 16)
@@ -103,40 +98,48 @@ class UnicodeReader private (val buf: Array[Char], val buflen: Int) {
 					if (d >= 0) {
 						ch = code.toChar
 						unicodeConversionBp = bp
+						return
 					}
 				}
-			} else {
+			}
+			else {
 				bp -= 1
 				ch = '\\'
 			}
 		}
 	}
 
+	/** Convert an ASCII digit from its base (8, 10, or 16)
+	 * to its value.
+	 */
 	def digit(pos: Int, base: Int): Int = {
 		val c = ch
-		if ('0' <= c && c <= '9') {
-			return Character.digit(c, base)
-		}
+		if ('0' <= c && c <= '9') return Character.digit(c, base) //a fast common case
 		val codePoint = peekSurrogates()
-		val result = if (codePoint >= 0) Character.digit(codePoint, base) else Character.digit(c, base)
+		val result = if (codePoint >= 0) Character.digit(codePoint, base)
+		else Character.digit(c, base)
 		if (result >= 0 && c > 0x7f) {
+			//            log.error(pos + 1, "illegal.nonascii.digit");
 			if (codePoint >= 0) scanChar()
 			ch = "0123456789abcdef".charAt(result)
 		}
 		result
 	}
 
+	/** Scan surrogate pairs.  If 'ch' is a high surrogate and
+	 * the next character is a low surrogate, returns the code point
+	 * constructed from these surrogates. Otherwise, returns -1.
+	 * This method will not consume any of the characters.
+	 */
 	def peekSurrogates(): Int = {
-		if (UnicodeReader.surrogatesSupported && Character.isHighSurrogate(ch)) {
+		if (surrogatesSupported && Character.isHighSurrogate(ch)) {
 			val high = ch
 			val prevBP = bp
 			scanChar()
 			val low = ch
 			ch = high
 			bp = prevBP
-			if (Character.isLowSurrogate(low)) {
-				return Character.toCodePoint(high, low)
-			}
+			if (Character.isLowSurrogate(low)) return Character.toCodePoint(high, low)
 		}
 		-1
 	}
@@ -149,35 +152,8 @@ class UnicodeReader private (val buf: Array[Char], val buflen: Int) {
 
 	def peekChar: Char = buf(bp + 1)
 
-	/**
-	 * Returns a copy of the input buffer, up to its inputLength.
-	 * Unicode escape sequences are not translated.
-	 */
-	def getRawCharacters: Array[Char] = {
-		val chars = new Array[Char](buflen)
-		System.arraycopy(buf, 0, chars, 0, buflen)
+	def name(): String = {
 		chars
 	}
-
-	/**
-	 * Returns a copy of a character array subset of the input buffer.
-	 * The returned array begins at the {@code beginIndex} and
-	 * extends to the character at index {@code endIndex - 1}.
-	 * Thus the length of the substring is {@code endIndex-beginIndex}.
-	 * This behavior is like
-	 * {@code String.substring(beginIndex, endIndex)}.
-	 * Unicode escape sequences are not translated.
-	 *
-	 * @param beginIndex the beginning index, inclusive.
-	 * @param endIndex   the ending index, exclusive.
-	 * @throws ArrayIndexOutOfBoundsException if either offset is outside of the
-	 *                                        array bounds
-	 */
-	def getRawCharacters(beginIndex: Int, endIndex: Int): Array[Char] = {
-		val length = endIndex - beginIndex
-		val chars = new Array[Char](length)
-		System.arraycopy(buf, beginIndex, chars, 0, length)
-		chars
-	}
-
+	def chars = new String(sbuf, 0, sp)
 }

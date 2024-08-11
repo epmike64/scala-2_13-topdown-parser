@@ -1,11 +1,11 @@
 package com.fdk.compiler.util
 
-
-object ArrayUtils {
+object FArrUtil {
+	
 	private def calculateNewLength(currentLength: Int, maxIndex: Int) = {
-		var cl = currentLength
-		while (currentLength < maxIndex + 1) cl = cl * 2
-		cl
+		var curLen = currentLength
+		while (curLen < maxIndex + 1) curLen = curLen * 2
+		curLen
 	}
 
 	def ensureCapacity[T](array: Array[T], maxIndex: Int): Array[T] = if (maxIndex < array.length) array

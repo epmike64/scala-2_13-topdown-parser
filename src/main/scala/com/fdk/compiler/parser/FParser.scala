@@ -1,13 +1,9 @@
 package com.fdk.compiler.parser
 
-import com.fdk.compiler.FToken
-import com.fdk.compiler.parser.FTokenKind.*
-//import com.fdk.compiler.tree.{FExpression, FImport, FModifiers, FPackageDecl, FTree, FTreeMaker}
-import com.fdk.compiler.util.FName
+import com.fdk.compiler.parser.FToken.FTokenKind
+import com.fdk.compiler.parser.FToken.FTokenKind.*
 
-import scala.collection.mutable.ArrayBuffer
-
-class FParser(lexer: IFLexer) { //extends IFParser {
+class FParser(lexer: IFLexer) {
 
 	private[this] var token: FToken = lexer.next
 
@@ -97,7 +93,7 @@ class FParser(lexer: IFLexer) { //extends IFParser {
 		//reporter.syntaxError(token.offset, msg)
 	}
 
-	def ident(): FName = {
+	def ident(): String = {
 		val name = token.name
 		accept(ID)
 		name

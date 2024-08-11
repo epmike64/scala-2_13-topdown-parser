@@ -1,6 +1,7 @@
 package com.fdk.compiler.parser
 
-import com.fdk.compiler.parser.FToken
+import com.fdk.compiler.parser.FToken.FTokenKind
+
 
 trait IFLexer {
 
