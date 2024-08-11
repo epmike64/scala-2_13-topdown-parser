@@ -4,7 +4,7 @@ import com.fdk.compiler.parser.FToken.FTokenKind
 
 trait IFLexer {
 
-	def next(): FToken
+	def nextToken(): FToken
 	
 	def skip(n: Int): FToken
 
