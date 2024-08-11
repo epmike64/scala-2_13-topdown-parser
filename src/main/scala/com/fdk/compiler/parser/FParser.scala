@@ -9,6 +9,7 @@ class FParser(lexer: IFLexer) {
 
 	def next(): Unit = {
 		token = lexer.nextToken()
+		println(s"Parser's Next=[${token}]")
 	}
 
 	def skip(n: Int): Unit = {

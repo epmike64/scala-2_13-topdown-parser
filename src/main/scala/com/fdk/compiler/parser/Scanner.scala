@@ -10,7 +10,6 @@ class Scanner(val tokenizer: FTokenizer) extends IFLexer {
 	var token: FToken = null
 	val savedTokens = ArrayBuffer[FToken]()
 
-	
 	def currentToken(): FToken = lookAhead(0)
 
 	override def lookAhead(lookahead: Int): FToken = {
