@@ -1118,10 +1118,10 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def literal(): Boolean = {
-		if (isToken(SUB) && isTokenLaOneOf(1, INT_LTR, FLOAT_LTR)) {
+		if (isToken(SUB) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
 			skip(2)
 			return true
-		} else if (isTokenOneOf(INT_LTR, FLOAT_LTR, STR_LTR, CHR_LTR, BOOL_LTR, NULL)) {
+		} else if (isTokenOneOf(INTLITERAL, FLOATLITERAL, STRINGLITERAL, CHARLITERAL, BOOLEANLITERAL, NULL)) {
 			next()
 			return true
 		}

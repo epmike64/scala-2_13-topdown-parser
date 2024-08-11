@@ -57,7 +57,7 @@ object FToken {
 		case DOUBLELITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
 		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
 		case STRINGLITERAL extends FTokenKind(null, FTokenTag.STRING)
-
+		case BOOLEANLITERAL extends FTokenKind(null, FTokenTag.NAMED)
 
 		case ID extends FTokenKind(null, FTokenTag.NAMED)
 
