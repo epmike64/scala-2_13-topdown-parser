@@ -68,7 +68,10 @@ class FParser(lexer: IFLexer) {
 
 	def isTokenPrefix(prefix: FTokenKind*): Boolean = {
 		for (i <- 0 until prefix.length) {
-			if (lookAhead(i) != prefix(i)) return false
+			val t = lookAhead(i)
+			if (t.kind != prefix(i)) {
+				return false
+			}
 		}
 		true
 	}
@@ -192,10 +195,31 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def simpleType(): Unit = {
-		val leftPar = slide(LPAREN)
-		stableId()
-		acceptCount(RPAREN, leftPar)
+	def simpleType(): Boolean = {
+		if(isToken(LPAREN)){
+			next()
+			types()
+			accept(RPAREN)
+			simpleTypeRest()
+			return true
+		} else if(stableId()){
+			if(isTokenPrefix(DOT, TYPE)){
+				skip(2)
+			}
+			simpleTypeRest()
+			return true
+		}
+		false
+	}
+
+	def simpleTypeRest(): Boolean = {
+		if(typeArgs()){
+			simpleTypeRest()
+		} else if(isTokenPrefix(POUND, ID)){
+			skip(2)
+			simpleTypeRest()
+		}
+		true
 	}
 
 	def _type(): Unit = {
@@ -216,6 +240,42 @@ class FParser(lexer: IFLexer) {
 		acceptCount(RPAREN, leftPar)
 	}
 
+	def typeArgs(): Boolean = {
+		if (isToken(LBRACKET)) {
+			next()
+			_type()
+			while (isToken(COMMA)) {
+				next()
+				_type()
+			}
+			accept(RBRACKET)
+			return true
+		}
+		false
+	}
+
+	def functionArgTypes(): Boolean = {
+		if(isToken(LPAREN)) {
+			next()
+			if (!isToken(RPAREN)) {
+				paramType()
+				while (isToken(COMMA)) {
+					next()
+					paramType()
+				}
+			}
+			accept(RPAREN)
+			return true
+		} else if(simpleType()) {
+			return true
+		}
+		false
+	}
+
+
+	def _type2(): Unit = {
+
+	}
 	def paramType(): Unit = {
 		if (isToken(FAT_ARROW)) {
 			next()

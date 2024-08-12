@@ -126,6 +126,7 @@ object FToken {
 		case GTGTGTEQ extends FTokenKind(">>>=", FTokenTag.DEFAULT)
 		case COLONCOLON extends FTokenKind("::", FTokenTag.DEFAULT)
 		case COLON extends FTokenKind(":", FTokenTag.DEFAULT)
+		case POUND extends FTokenKind("#", FTokenTag.DEFAULT)
 	}
 
 	private lazy val tokens = {
