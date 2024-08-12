@@ -220,36 +220,14 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
-	def _type_OLD(): Unit = {
-		val leftPar = slide(LPAREN)
-		simpleType()
-		if (isToken(FAT_ARROW)) {
-			next()
-			_type()
-		}
-		while (isToken(COMMA)) {
-			next()
-			simpleType()
-			if (isToken(FAT_ARROW)) {
-				next()
-				_type()
-			}
-		}
-		acceptCount(RPAREN, leftPar)
-	}
-
-
 	def _type(): Boolean = {
 		if (functionArgTypes()) {
 			if (isToken(FAT_ARROW)) {
 				next()
 				_type()
 			}
-			//else if (infixType()) {
-			//	existentialClause?
-			//}
 			return true
-		}
+		}//else if (infixType()) { //	existentialClause? //}
 		false
 	}
 
