@@ -187,12 +187,13 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def infixType(): Unit = {
+	def infixType(): Boolean = {
 		compoundType()
 		while (token.kind == ID) {
 			next()
 			compoundType()
 		}
+		true
 	}
 
 	def simpleType(): Boolean = {
@@ -222,7 +223,7 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
-	def _type(): Unit = {
+	def _type_OLD(): Unit = {
 		val leftPar = slide(LPAREN)
 		simpleType()
 		if (isToken(FAT_ARROW)) {
@@ -238,6 +239,17 @@ class FParser(lexer: IFLexer) {
 			}
 		}
 		acceptCount(RPAREN, leftPar)
+	}
+
+
+	def _type(): Boolean = {
+		if (functionArgTypes()) {
+			accept(FAT_ARROW)
+			_type()
+		} else if (infixType()) {
+			//existentialClause?
+		}
+		true
 	}
 
 	def typeArgs(): Boolean = {
@@ -272,11 +284,7 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
-
-	def _type2(): Unit = {
-
-	}
-	def paramType(): Unit = {
+	def paramType(): Boolean = {
 		if (isToken(FAT_ARROW)) {
 			next()
 			_type()
@@ -284,6 +292,7 @@ class FParser(lexer: IFLexer) {
 			_type()
 			if (isToken(STAR)) next()
 		}
+		true
 	}
 
 	def classParam(): Boolean = {
