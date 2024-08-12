@@ -39,7 +39,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 
 	def  readToken(): FToken = {
 		val t = _readToken()
-		println("Tokenizer read token: " + t)
+		//println("Tokenizer read token: " + t)
 		t
 	}
 	def _readToken(): FToken = {
@@ -581,7 +581,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 			reader.putChar(false)
 			val newname = reader.name()
 			val tk1 = FToken.lookupKind(newname)
-			if (tk1 eq FTokenKind.ID) {
+			if (tk1 == FTokenKind.ID) {
 				reader.sp -= 1
 				isLoop = false //break //todo: break is not supported
 			} else {

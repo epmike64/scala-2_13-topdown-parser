@@ -81,9 +81,6 @@ class FParser(lexer: IFLexer) {
 	}
 
 
-
-	
-
 	def isTokenOneOf(kinds: FTokenKind*): Boolean = {
 		kinds.contains(token.kind)
 	}
@@ -197,14 +194,14 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleType(): Boolean = {
-		if(isToken(LPAREN)){
+		if (isToken(LPAREN)) {
 			next()
 			types()
 			accept(RPAREN)
 			simpleTypeRest()
 			return true
-		} else if(stableId()){
-			if(isTokenPrefix(DOT, TYPE)){
+		} else if (stableId()) {
+			if (isTokenPrefix(DOT, TYPE)) {
 				skip(2)
 			}
 			simpleTypeRest()
@@ -214,9 +211,9 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleTypeRest(): Boolean = {
-		if(typeArgs()){
+		if (typeArgs()) {
 			simpleTypeRest()
-		} else if(isTokenPrefix(POUND, ID)){
+		} else if (isTokenPrefix(POUND, ID)) {
 			skip(2)
 			simpleTypeRest()
 		}
@@ -244,22 +241,22 @@ class FParser(lexer: IFLexer) {
 
 	def _type(): Boolean = {
 		if (functionArgTypes()) {
-			accept(FAT_ARROW)
-			_type()
-		} else if (infixType()) {
-			//existentialClause?
+			if (isToken(FAT_ARROW)) {
+				next()
+				_type()
+			}
+			//else if (infixType()) {
+			//	existentialClause?
+			//}
+			return true
 		}
-		true
+		false
 	}
 
 	def typeArgs(): Boolean = {
 		if (isToken(LBRACKET)) {
 			next()
-			_type()
-			while (isToken(COMMA)) {
-				next()
-				_type()
-			}
+			types()
 			accept(RBRACKET)
 			return true
 		}
@@ -267,7 +264,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def functionArgTypes(): Boolean = {
-		if(isToken(LPAREN)) {
+		if (isToken(LPAREN)) {
 			next()
 			if (!isToken(RPAREN)) {
 				paramType()
@@ -278,7 +275,7 @@ class FParser(lexer: IFLexer) {
 			}
 			accept(RPAREN)
 			return true
-		} else if(simpleType()) {
+		} else if (simpleType()) {
 			return true
 		}
 		false
@@ -1274,7 +1271,7 @@ class FParser(lexer: IFLexer) {
 			classParents()
 			templateBody()
 			return true
-		} else if(templateBody()) {
+		} else if (templateBody()) {
 			return true
 		}
 		false
@@ -1287,7 +1284,7 @@ class FParser(lexer: IFLexer) {
 			classParents()
 			templateBody()
 			return true
-		} else if(templateBody()) {
+		} else if (templateBody()) {
 			return true
 		}
 		false
@@ -1316,7 +1313,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def traitDef(): Boolean = {
-		if(isToken(TRAIT)) {
+		if (isToken(TRAIT)) {
 			ident()
 			typeParamClause()
 			traitTemplateOpt()
