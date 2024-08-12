@@ -1,10 +1,16 @@
 package com.fdk.compiler.parser
 
+import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
 
-class FParser(lexer: IFLexer) {
+object FParser {
+	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
+	def apply(lexer: IFLexer): FParser = new FParser(lexer)
+}
 
+
+class FParser(lexer: IFLexer) {
 	private[this] var token: FToken = lexer.nextToken()
 
 	def next(): Unit = {
@@ -107,7 +113,7 @@ class FParser(lexer: IFLexer) {
 
 	def _package(): Unit = {
 		accept(PACKAGE)
-		val pid = qualId()
+		qualId()
 	}
 
 	def _import(): Boolean = {
@@ -224,7 +230,7 @@ class FParser(lexer: IFLexer) {
 		if (functionArgTypes()) {
 			if (isToken(FAT_ARROW)) {
 				next()
-				_type()
+				assrt(_type())
 			}
 			return true
 		}//else if (infixType()) { //	existentialClause? //}
@@ -262,9 +268,9 @@ class FParser(lexer: IFLexer) {
 	def paramType(): Boolean = {
 		if (isToken(FAT_ARROW)) {
 			next()
-			_type()
+			assrt(_type())
 		} else {
-			_type()
+			assrt(_type())
 			if (isToken(STAR)) next()
 		}
 		true
@@ -309,23 +315,23 @@ class FParser(lexer: IFLexer) {
 
 		if (isToken(LOWER_BOUND)) {
 			next()
-			_type()
+			assrt(_type())
 		}
 		if (isToken(UPPER_BOUND)) {
 			next()
-			_type()
+			assrt(_type())
 		}
 		if (isToken(COLON)) {
 			next() //Context bound
-			_type()
+			assrt(_type())
 		}
 	}
 
 	def types(): Unit = {
-		_type()
+		assrt(_type())
 		while (token.kind == COMMA) {
 			next()
-			_type()
+			assrt(_type())
 		}
 	}
 
@@ -392,7 +398,7 @@ class FParser(lexer: IFLexer) {
 	def pattern1(): Boolean = {
 		if (isTokenOneOf(UNDERSCORE, ID) && isTokenLaOneOf(1, COLON)) {
 			skip(2)
-			_type()
+			assrt(_type())
 		} else if (pattern2()) {
 		} else {
 			return false
@@ -493,13 +499,33 @@ class FParser(lexer: IFLexer) {
 		if (isToken(NEW)) {
 			//(classTemplate | templateBody)
 			return true
-		} else if (isToken(LCURL)) {
-			//blockExpr
+		} else if (blockExpr()) {
 			return true
 		}
 		false
 	}
 
+	def caseClauses(): Boolean = {
+		if (caseClause()) {
+			while (caseClause()) {}
+			return true
+		}
+		false
+	}
+	
+	def blockExpr(): Boolean = {
+		if (isToken(LCURL)) {
+			next()
+			if(caseClauses()){
+			} else {
+				assrt(block())
+			}
+			accept(RCURL)
+			return true
+		}
+		false
+	}
+	
 	def simpleExpr1(): Boolean = {
 		if (literal() || stableId() || isToken(UNDERSCORE)) {
 			next()
@@ -600,7 +626,7 @@ class FParser(lexer: IFLexer) {
 			pattern()
 			guard()
 			accept(FAT_ARROW)
-			block()
+			assrt(block())
 			return true
 		}
 		false
@@ -699,7 +725,7 @@ class FParser(lexer: IFLexer) {
 				acceptOneOf(ID, UNDERSCORE)
 				if (isToken(COLON)) {
 					next()
-					_type()
+					assrt(_type())
 				}
 				isToken(COMMA)
 			}) {}
@@ -791,7 +817,7 @@ class FParser(lexer: IFLexer) {
 			}
 			if (isToken(COLON)) {
 				next()
-				_type()
+				assrt(_type())
 			}
 			accept(EQ)
 			expr()
@@ -818,7 +844,7 @@ class FParser(lexer: IFLexer) {
 		if (patDef()) {
 		} else if (ids()) {
 			accept(COLON)
-			_type()
+			assrt(_type())
 			accept(EQ)
 			accept(UNDERSCORE)
 		} else {
@@ -856,7 +882,7 @@ class FParser(lexer: IFLexer) {
 	def constrBlock(): Boolean = {
 		if (isToken(LCURL)) {
 			selfInvocation()
-			blockStats()
+			while(blockStat()){}
 			accept(RCURL)
 			return true
 		}
@@ -900,16 +926,16 @@ class FParser(lexer: IFLexer) {
 			typeParamClause()
 			if (isToken(EQ)) {
 				next()
-				_type()
+				assrt(_type())
 				return true
 			}
 			if (isToken(LOWER_BOUND)) {
 				next()
-				_type()
+				assrt(_type())
 			}
 			if (isToken(UPPER_BOUND)) {
 				next()
-				_type()
+				assrt(_type())
 			}
 			return true
 		}
@@ -920,7 +946,7 @@ class FParser(lexer: IFLexer) {
 		if (isToken(VAR) && isTokenLaOneOf(1, ID)) {
 			ids()
 			accept(COLON)
-			_type()
+			assrt(_type())
 			return true
 		}
 		false
@@ -930,7 +956,7 @@ class FParser(lexer: IFLexer) {
 		if (isToken(VAL) && isTokenLaOneOf(1, ID)) {
 			ids()
 			accept(COLON)
-			_type()
+			assrt(_type())
 			return true
 		}
 		false
@@ -1023,7 +1049,7 @@ class FParser(lexer: IFLexer) {
 			if (funSig()) {
 				if (isToken(COLON)) {
 					next()
-					_type()
+					assrt(_type())
 					if (isToken(EQ)) {
 						next()
 						expr()
@@ -1088,9 +1114,13 @@ class FParser(lexer: IFLexer) {
 	}
 
 
-	def block(): Unit = {
-		blockStats()
-		resultExpr()
+	def block(): Boolean = {
+		if (blockStat()) {
+			while (blockStat()) {}
+			resultExpr()
+			return true
+		}
+		false
 	}
 
 	def modifiers(): Boolean = {
@@ -1130,7 +1160,7 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
-	def blockStats(): Boolean = {
+	def blockStat(): Boolean = {
 		if (_import()) {
 		} else if (localModifier()) {
 			tmplDef()
@@ -1173,11 +1203,11 @@ class FParser(lexer: IFLexer) {
 		if (isToken(ID)) {
 			if (isToken(COLON)) {
 				next()
-				_type()
+				assrt(_type())
 			}
 		} else if (isToken(THIS)) {
 			accept(COLON)
-			_type()
+			assrt(_type())
 		} else {
 			return false
 		}
