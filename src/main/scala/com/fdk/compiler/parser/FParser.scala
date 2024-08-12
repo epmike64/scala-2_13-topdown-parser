@@ -383,7 +383,7 @@ class FParser(lexer: IFLexer) {
 		typeParam()
 	}
 
-	def pattern2(): Boolean = {
+	def pattern2_OLD(): Boolean = {
 		if (isTokenPrefix(ID, AT)) {
 			ident()
 			next()
@@ -391,6 +391,17 @@ class FParser(lexer: IFLexer) {
 		} else if (pattern3()) {
 		} else {
 			return false
+		}
+		true
+	}
+
+	def pattern2(): Boolean = {
+		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
+			ident()
+			next()
+			assrt(pattern3())
+		} else {
+			assrt(pattern3())
 		}
 		true
 	}
@@ -446,6 +457,7 @@ class FParser(lexer: IFLexer) {
 
 	def simplePattern(): Boolean = {
 		if (isToken(UNDERSCORE) || literal()) {
+			next()
 			return true
 		}
 		if (stableId()) {
@@ -532,11 +544,10 @@ class FParser(lexer: IFLexer) {
 			simpleExpr1Rest()
 			return true
 		} else if (isToken(LPAREN)) {
-			while ( {
-				next()
-				expr()
-				isToken(COMMA)
-			}) ()
+			next()
+			if(!isToken(RPAREN)){
+				exprs()
+			}
 			accept(RPAREN)
 			simpleExpr1Rest()
 			return true
@@ -734,6 +745,15 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
+	def exprs():Boolean = {
+		assrt(expr())
+		while (isToken(COMMA)) {
+			next()
+			assrt(expr())
+		}
+		true
+	}
+	
 	def expr(): Boolean = {
 		if (bindings()) {
 			accept(FAT_ARROW)
@@ -798,14 +818,12 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def pattern3(): Boolean = {
-		if (simplePattern()) {
-			while (isToken(ID)) {
-				ident()
-				simplePattern()
-			}
-			return true
+		assrt(simplePattern())
+		while (isToken(ID)) {
+			ident()
+			assert(simplePattern())
 		}
-		false
+		true
 	}
 
 
@@ -855,8 +873,10 @@ class FParser(lexer: IFLexer) {
 
 	def patVarDef(): Boolean = {
 		if (isToken(VAL)) {
+			next()
 			return patDef()
 		} else if (isToken(VAR)) {
+			next()
 			return varDef()
 		}
 		false
@@ -1115,12 +1135,10 @@ class FParser(lexer: IFLexer) {
 
 
 	def block(): Boolean = {
-		if (blockStat()) {
-			while (blockStat()) {}
-			resultExpr()
-			return true
-		}
-		false
+		assrt(blockStat())
+		while (blockStat()) {}
+		resultExpr()
+		true
 	}
 
 	def modifiers(): Boolean = {
