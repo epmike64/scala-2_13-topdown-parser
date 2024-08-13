@@ -6,6 +6,7 @@ import com.fdk.compiler.parser.FToken.FTokenKind.*
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
+
 	def apply(lexer: IFLexer): FParser = new FParser(lexer)
 }
 
@@ -233,7 +234,7 @@ class FParser(lexer: IFLexer) {
 				assrt(_type())
 			}
 			return true
-		}//else if (infixType()) { //	existentialClause? //}
+		} //else if (infixType()) { //	existentialClause? //}
 		false
 	}
 
@@ -507,10 +508,11 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
+
 	def simpleExpr(): Boolean = {
 		if (isToken(NEW)) {
-			//(classTemplate | templateBody)
-			return true
+			next()
+			if (templateBody() || classTemplate()) return true
 		} else if (blockExpr()) {
 			return true
 		}
@@ -524,11 +526,11 @@ class FParser(lexer: IFLexer) {
 		}
 		false
 	}
-	
+
 	def blockExpr(): Boolean = {
 		if (isToken(LCURL)) {
 			next()
-			if(caseClauses()){
+			if (caseClauses()) {
 			} else {
 				assrt(block())
 			}
@@ -537,7 +539,7 @@ class FParser(lexer: IFLexer) {
 		}
 		false
 	}
-	
+
 	def simpleExpr1(): Boolean = {
 		if (literal() || stableId() || isToken(UNDERSCORE)) {
 			next()
@@ -545,7 +547,7 @@ class FParser(lexer: IFLexer) {
 			return true
 		} else if (isToken(LPAREN)) {
 			next()
-			if(!isToken(RPAREN)){
+			if (!isToken(RPAREN)) {
 				exprs()
 			}
 			accept(RPAREN)
@@ -690,25 +692,9 @@ class FParser(lexer: IFLexer) {
 			}
 			expr()
 		} else if (isToken(THROW)) {
-			expr()
+			assrt(expr())
 		} else if (isToken(RETURN)) {
-			//expr()
-		} else if (simpleExpr1()) {
-			if (argumentExprs()) {
-				accept(EQ)
-				expr()
-			} else {
-				if (isToken(UNDERSCORE)) {
-					next()
-				}
-				if (isToken(DOT)) {
-					next()
-					ident()
-				}
-				accept(EQ)
-				expr()
-			}
-
+			expr()
 		} else if (postfixExpr()) {
 			if (isToken(MATCH)) {
 				next()
@@ -720,13 +706,44 @@ class FParser(lexer: IFLexer) {
 				next()
 			}
 		} else {
-			return false
+			if (simpleExpr()) {
+				accept(DOT)
+				accept(ID)
+				accept(EQ)
+				expr()
+			}
+			else if (simpleExpr1()) {
+				if (argumentExprs()) {
+					accept(EQ)
+					expr()
+				} else {
+					if (isToken(UNDERSCORE)) {
+						next()
+					}
+					accept(DOT)
+					accept(ID)
+					accept(EQ)
+					expr()
+				}
+			}
 		}
 		true
 	}
 
-	def args(): Unit = {
-		expr() // postfixExpr (':' | '_' | '*')?
+	def args(): Boolean = {
+		if(expr()) {
+			while (isToken(COMMA)) {
+				next()
+				expr()
+			}
+			return true
+		} else if(postfixExpr()){
+			if(isTokenOneOf(COLON, UNDERSCORE, STAR)){
+				next()
+			}
+			return true
+		}
+		false
 	}
 
 	def bindings(): Boolean = {
@@ -745,7 +762,7 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
-	def exprs():Boolean = {
+	def exprs(): Boolean = {
 		assrt(expr())
 		while (isToken(COMMA)) {
 			next()
@@ -753,7 +770,7 @@ class FParser(lexer: IFLexer) {
 		}
 		true
 	}
-	
+
 	def expr(): Boolean = {
 		if (bindings()) {
 			accept(FAT_ARROW)
@@ -902,7 +919,7 @@ class FParser(lexer: IFLexer) {
 	def constrBlock(): Boolean = {
 		if (isToken(LCURL)) {
 			selfInvocation()
-			while(blockStat()){}
+			while (blockStat()) {}
 			accept(RCURL)
 			return true
 		}
@@ -1233,20 +1250,6 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
-	def templateBody(): Boolean = {
-		if (isToken(LCURL)) {
-			next()
-			selfType()
-			while (!isToken(RCURL)) {
-				templateStat() //+
-			}
-			accept(RCURL)
-		} else {
-			return false
-		}
-		true
-	}
-
 	def classParamClause(): Boolean = {
 		if (isToken(LPAREN)) {
 			next()
@@ -1284,6 +1287,26 @@ class FParser(lexer: IFLexer) {
 		if (classParamClause()) {
 			while (classParamClause()) {}
 			classParamClausesRest()
+			return true
+		}
+		false
+	}
+
+	def classTemplate(): Boolean = {
+		//earlyDefs?
+		classParents()
+		templateBody()
+		true
+	}
+
+	def templateBody(): Boolean = {
+		if (isToken(LCURL)) {
+			next()
+			selfType()
+			while (!isToken(RCURL)) {
+				templateStat() //+
+			}
+			accept(RCURL)
 			return true
 		}
 		false
