@@ -383,7 +383,7 @@ class FParser(lexer: IFLexer) {
 		}
 		typeParam()
 	}
-	
+
 	def pattern2(): Boolean = {
 		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
 			ident()
@@ -623,7 +623,7 @@ class FParser(lexer: IFLexer) {
 		}
 		false
 	}
-	
+
 	def postfixExpr(): Boolean = {
 		if (infixExpr()) {
 			if(isToken(ID)){
@@ -661,16 +661,16 @@ class FParser(lexer: IFLexer) {
 				expr()
 			}
 			return true
-		} 
-		
+		}
+
 		if (isToken(WHILE)) {
 			accept(LPAREN)
 			expr()
 			accept(RCURL)
 			expr()
 			return true
-		} 
-		
+		}
+
 		if (isToken(TRY)) {
 			expr()
 			if (token.kind == CATCH) {
@@ -682,8 +682,8 @@ class FParser(lexer: IFLexer) {
 				expr()
 			}
 			return true
-		} 
-		
+		}
+
 		if (isToken(DO)) {
 			expr()
 			accept(WHILE)
@@ -691,8 +691,8 @@ class FParser(lexer: IFLexer) {
 			expr()
 			accept(RPAREN)
 			return true
-		} 
-		
+		}
+
 		if (isToken(FOR)) {
 			if (token.kind == LPAREN) {
 				next()
@@ -709,20 +709,20 @@ class FParser(lexer: IFLexer) {
 			}
 			expr()
 			return true
-		} 
-		
+		}
+
 		if (isToken(THROW)) {
 			assrt(expr())
 			return true
-		} 
-		
+		}
+
 		if (isToken(RETURN)) {
 			expr()
 			return true
-		} 
-		
+		}
+
 		if(postfixExpr()){
-			
+
 			if (isToken(MATCH)) {
 				next()
 				accept(LCURL)
@@ -732,25 +732,25 @@ class FParser(lexer: IFLexer) {
 				}
 				next()
 				return true
-			} 
-			
+			}
+
 			if(ascription()){
 				return true
-			} 
-			
+			}
+
 			if (argumentExprs()) {
 				accept(EQ)
 				expr()
 				return true
-			} 
-			
+			}
+
 			if(isToken(ID)){
 				ident()
 				accept(EQ)
 				expr()
 				return true
 			}
-			
+
 			return true
 		}
 		false
@@ -768,7 +768,7 @@ class FParser(lexer: IFLexer) {
 		}
 		false
 	}
-	
+
 	def ascription(): Boolean = {
 		if(isToken(COLON)){
 			if(isTokenPrefix(UNDERSCORE, STAR)){
@@ -780,7 +780,7 @@ class FParser(lexer: IFLexer) {
 		}
 		false
 	}
-	
+
 	def args(): Boolean = {
 		if (expr()) {
 			while (isToken(COMMA)) {
@@ -826,20 +826,20 @@ class FParser(lexer: IFLexer) {
 		if (bindings()) {
 			accept(FAT_ARROW)
 			return expr()
-		} 
-		
+		}
+
 		if (isToken(IMPLICIT)) {
 			acceptOneOf(ID, UNDERSCORE)
 			accept(FAT_ARROW)
 			return expr()
-		} 
-		
+		}
+
 		if (isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)) {
 			next()
 			accept(FAT_ARROW)
 			return expr()
-		} 
-		
+		}
+
 		expr1()
 	}
 
@@ -1396,6 +1396,7 @@ class FParser(lexer: IFLexer) {
 
 	def classDef(isCase: Boolean): Boolean = {
 		if (isToken(CLASS)) {
+			next()
 			ident()
 			typeParamClause()
 			accessModifier()
@@ -1418,6 +1419,7 @@ class FParser(lexer: IFLexer) {
 
 	def traitDef(): Boolean = {
 		if (isToken(TRAIT)) {
+			next()
 			ident()
 			typeParamClause()
 			traitTemplateOpt()
@@ -1439,22 +1441,26 @@ class FParser(lexer: IFLexer) {
 	def tmplDef(): Boolean = {
 		var isCase = false
 		if (isToken(CASE)) {
+			if(!isTokenLaOneOf(1, CLASS, OBJECT)){
+				return false
+			}
 			isCase = true
 			next()
 		}
-		if (isToken(TRAIT)) {
-			if (isCase) {
-				reportSyntaxError(token.pos, "expected", CLASS, OBJECT)
-			}
-			traitDef()
-		} else if (isToken(OBJECT)) {
-			objectDef(isCase)
-		} else if (isToken(CLASS)) {
-			classDef(isCase)
-		} else {
-			return false
+
+		if (traitDef()) {
+			return true
 		}
-		true
+
+		if (objectDef(isCase)) {
+			return true
+		}
+
+		if (classDef(isCase)) {
+			return true
+		}
+
+		false
 	}
 
 	def topStatement(): Unit = {
