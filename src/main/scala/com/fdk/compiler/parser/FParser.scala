@@ -16,7 +16,7 @@ class FParser(lexer: IFLexer) {
 
 	def next(): Unit = {
 		token = lexer.nextToken()
-		println(s"Parser's Next=[${token}]")
+		println(s"Next=[${token}]")
 	}
 
 	def skip(n: Int): Unit = {
@@ -747,6 +747,12 @@ class FParser(lexer: IFLexer) {
 			if(isToken(ID)){
 				ident()
 				accept(EQ)
+				expr()
+				return true
+			}
+
+			if(isToken(EQ)){
+				next()
 				expr()
 				return true
 			}
