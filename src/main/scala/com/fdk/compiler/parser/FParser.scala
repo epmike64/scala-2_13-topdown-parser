@@ -541,8 +541,12 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleExpr1(): Boolean = {
-		if (literal() || stableId() || isToken(UNDERSCORE)) {
+		if(isToken(UNDERSCORE)){
 			next()
+			simpleExpr1Rest()
+			return true
+		}
+		if (literal() || stableId()) {
 			simpleExpr1Rest()
 			return true
 		} else if (isToken(LPAREN)) {
@@ -624,9 +628,22 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
+	def prefixDef():Boolean = {
+		if(isTokenOneOf(SUB, PLUS, TILDE, BANG)){
+			next()
+			return true
+		}
+		false
+	}
+	
 	def postfixExpr(): Boolean = {
-		// Grammar is ambiguous here
 		if (infixExpr()) {
+			if(isToken(ID)){
+				ident()
+			}
+			while(prefixDef()){
+				simpleExpr1()
+			}
 			return true
 		}
 		false
@@ -655,12 +672,18 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-		} else if (isToken(WHILE)) {
+			return true
+		} 
+		
+		if (isToken(WHILE)) {
 			accept(LPAREN)
 			expr()
 			accept(RCURL)
 			expr()
-		} else if (isToken(TRY)) {
+			return true
+		} 
+		
+		if (isToken(TRY)) {
 			expr()
 			if (token.kind == CATCH) {
 				next()
@@ -670,13 +693,19 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-		} else if (isToken(DO)) {
+			return true
+		} 
+		
+		if (isToken(DO)) {
 			expr()
 			accept(WHILE)
 			accept(LPAREN)
 			expr()
 			accept(RPAREN)
-		} else if (isToken(FOR)) {
+			return true
+		} 
+		
+		if (isToken(FOR)) {
 			if (token.kind == LPAREN) {
 				next()
 				enumerators()
@@ -691,11 +720,21 @@ class FParser(lexer: IFLexer) {
 				next()
 			}
 			expr()
-		} else if (isToken(THROW)) {
+			return true
+		} 
+		
+		if (isToken(THROW)) {
 			assrt(expr())
-		} else if (isToken(RETURN)) {
+			return true
+		} 
+		
+		if (isToken(RETURN)) {
 			expr()
-		} else if (postfixExpr()) {
+			return true
+		} 
+		
+		if(postfixExpr()){
+			
 			if (isToken(MATCH)) {
 				next()
 				accept(LCURL)
@@ -704,41 +743,65 @@ class FParser(lexer: IFLexer) {
 					caseClause()
 				}
 				next()
-			}
-		} else {
-			if (simpleExpr()) {
-				accept(DOT)
-				accept(ID)
+				return true
+			} 
+			
+			if(ascription()){
+				return true
+			} 
+			
+			if (argumentExprs()) {
 				accept(EQ)
 				expr()
+				return true
+			} 
+			
+			if(isToken(ID)){
+				ident()
+				accept(EQ)
+				expr()
+				return true
 			}
-			else if (simpleExpr1()) {
-				if (argumentExprs()) {
-					accept(EQ)
-					expr()
-				} else {
-					if (isToken(UNDERSCORE)) {
-						next()
-					}
-					accept(DOT)
-					accept(ID)
-					accept(EQ)
-					expr()
-				}
-			}
+			
+			return true
 		}
-		true
+		false
 	}
 
+	def annotations():Boolean = {
+		if(isToken(AT)){
+			while ( {
+				next()
+				simpleType()
+				argumentExprs()
+				isToken(AT)
+			}) {}
+			return true
+		}
+		false
+	}
+	
+	def ascription(): Boolean = {
+		if(isToken(COLON)){
+			if(isTokenPrefix(UNDERSCORE, STAR)){
+				skip(2)
+				return true
+			} else if(annotations() || infixType()){
+				return true
+			}
+		}
+		false
+	}
+	
 	def args(): Boolean = {
-		if(expr()) {
+		if (expr()) {
 			while (isToken(COMMA)) {
 				next()
 				expr()
 			}
 			return true
-		} else if(postfixExpr()){
-			if(isTokenOneOf(COLON, UNDERSCORE, STAR)){
+		} else if (postfixExpr()) {
+			if (isTokenOneOf(COLON, UNDERSCORE, STAR)) {
 				next()
 			}
 			return true
@@ -774,18 +837,22 @@ class FParser(lexer: IFLexer) {
 	def expr(): Boolean = {
 		if (bindings()) {
 			accept(FAT_ARROW)
-			expr()
-		} else if (isToken(IMPLICIT)) {
+			return expr()
+		} 
+		
+		if (isToken(IMPLICIT)) {
 			acceptOneOf(ID, UNDERSCORE)
 			accept(FAT_ARROW)
-			expr()
-		} else if (isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)) {
+			return expr()
+		} 
+		
+		if (isTokenOneOf(ID, UNDERSCORE) && isTokenLaOneOf(1, FAT_ARROW)) {
 			next()
 			accept(FAT_ARROW)
-			expr()
-		} else {
-			expr1()
-		}
+			return expr()
+		} 
+		
+		expr1()
 	}
 
 	def resultExprRest(): Boolean = {
