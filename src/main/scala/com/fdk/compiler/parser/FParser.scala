@@ -383,19 +383,7 @@ class FParser(lexer: IFLexer) {
 		}
 		typeParam()
 	}
-
-	def pattern2_OLD(): Boolean = {
-		if (isTokenPrefix(ID, AT)) {
-			ident()
-			next()
-			pattern3()
-		} else if (pattern3()) {
-		} else {
-			return false
-		}
-		true
-	}
-
+	
 	def pattern2(): Boolean = {
 		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
 			ident()
