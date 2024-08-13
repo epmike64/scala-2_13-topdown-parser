@@ -70,7 +70,7 @@ class FParser(lexer: IFLexer) {
 
 
 	def isTokenLaOneOf(n: Int, kinds: FTokenKind*): Boolean = {
-		kinds.contains(lookAhead(n))
+		kinds.contains(lookAhead(n).kind)
 	}
 
 	def isTokenPrefix(prefix: FTokenKind*): Boolean = {
@@ -1181,13 +1181,21 @@ class FParser(lexer: IFLexer) {
 
 	def _def(): Boolean = {
 		if (patVarDef()) {
-		} else if (funDclDef()) {
-		} else if (typeDclDef()) {
-		} else if (tmplDef()) {
-		} else {
-			return false
+			return true
 		}
-		true
+
+		if (funDclDef()) {
+			return true
+		}
+
+		if (typeDclDef()) {
+			return true
+		}
+
+		if (tmplDef()) {
+			return true
+		}
+		false
 	}
 
 	def valDefDcl(): Unit = {
@@ -1252,17 +1260,28 @@ class FParser(lexer: IFLexer) {
 
 	def blockStat(): Boolean = {
 		if (_import()) {
-		} else if (localModifier()) {
+			return true
+		}
+
+		if (localModifier()) {
 			tmplDef()
-		} else if (isTokenOneOf(IMPLICIT, LAZY)) {
+			return true
+		}
+
+		if (isTokenOneOf(IMPLICIT, LAZY)) {
 			next()
 			_def()
-		} else if (_def()) {
-		} else if (expr1()) {
-		} else {
-			return false
+			return true
 		}
-		true
+
+		if (_def()) {
+			return true
+		}
+
+		if (expr1()) {
+			return true
+		}
+		false
 	}
 
 	def templateStat(): Boolean = {
