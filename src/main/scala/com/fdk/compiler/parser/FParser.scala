@@ -1231,7 +1231,6 @@ class FParser(lexer: IFLexer) {
 		var isModifier: Boolean = false
 		while (modifier()) {
 			isModifier = true
-			next()
 		}
 		isModifier
 	}
