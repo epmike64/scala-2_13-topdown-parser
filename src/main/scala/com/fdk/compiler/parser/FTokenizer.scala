@@ -568,7 +568,8 @@ class FTokenizer private(val reader: UnicodeReader) {
 
 				case 16 =>
 					lexError(pos, "invalid.hex.number")
-
+               
+				case _ => // do nothing
 			}
 			if (reader.ch == 'l' || reader.ch == 'L') {
 				reader.scanChar()

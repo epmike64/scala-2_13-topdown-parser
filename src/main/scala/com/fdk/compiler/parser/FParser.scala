@@ -884,7 +884,7 @@ class FParser(lexer: IFLexer) {
 			return true
 		}
 		if(isTokenOneOf(LPAREN, LCURL)){
-			val t = if(token == LPAREN) RPAREN else RCURL
+			val t = if(token.kind == LPAREN) RPAREN else RCURL
 			next()
 			args()
 			accept(t)
