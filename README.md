@@ -1,1 +1,1 @@
-# scala 2.13 top down parser
+# Top Down Parser for Scala 2.13 Grammar. Implemented in Scala.
