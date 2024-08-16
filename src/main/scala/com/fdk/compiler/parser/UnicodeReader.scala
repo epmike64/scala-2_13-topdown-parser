@@ -1,8 +1,8 @@
 package com.fdk.compiler.parser
 
 import com.fdk.compiler.parser.LayoutChars.*
-import com.fdk.compiler.parser.UnicodeReader.surrogatesSupported
 import com.fdk.compiler.util.FArrUtil
+
 import scala.collection.mutable.Stack
 
 object UnicodeReader {
@@ -43,7 +43,7 @@ class UnicodeReader(val buf: Array[Char]) {
 	
 	scanChar()
 	
-	import UnicodeReader._
+	import UnicodeReader.*
 	def pushState(): Int = {
 		stateId += 1
 		stateStack.push(State(stateId, bp, ch, unicodeConversionBp, sbuf, sp))
