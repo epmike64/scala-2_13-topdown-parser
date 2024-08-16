@@ -1,10 +1,7 @@
-class Point(var x: Int, var y: Int) {
+class AddingHoldingFlag1(val transformation: KingTransformation) extends TransformationTrait{
 
-	def move(dx: Int, dy: Int): Unit = {
-		x = x + dx
-		y = y + dy
+	def concatTest() = {
+		val a = "test" + "test" + "test"
+		val schema = StructType(Seq( StructField(Fields.Alpha + "_trc", StringType), StructField(Fields.Beta + "_trc", DecimalType(10,0)), StructField(Fields.Gamma, StringType) ))
 	}
-
-	override def toString: String =
-		s"($x, $y)"
 }
