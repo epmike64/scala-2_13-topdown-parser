@@ -13,7 +13,7 @@ class Scanner(val tokenizer: FTokenizer) extends IFLexer {
 	}
 	
 	def popState(stateId: Int, discard: Boolean): Unit = {
-		popState(stateId, discard)
+		tokenizer.popState(stateId, discard)
 	}
 	
 	def currentToken(): FToken = lookAhead(0)

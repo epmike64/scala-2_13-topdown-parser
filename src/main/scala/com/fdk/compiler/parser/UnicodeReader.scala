@@ -46,7 +46,7 @@ class UnicodeReader(val buf: Array[Char]) {
 	import UnicodeReader.*
 	def pushState(): Int = {
 		stateId += 1
-		stateStack.push(State(stateId, bp, ch, unicodeConversionBp, sbuf, sp))
+		stateStack.push(State(stateId, bp, ch, unicodeConversionBp, sbuf.clone(), sp))
 		stateId
 	}
 	
