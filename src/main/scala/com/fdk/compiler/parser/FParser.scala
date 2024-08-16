@@ -880,23 +880,17 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def argumentExprs(): Boolean = {
-		if(isToken(LCURL)){
-			if(blockExpr()){
-				return true
-			}
-			next()
-			args()
-			accept(RCURL)
-			return false
-		}	
-		
-		if(isToken(LPAREN)){
-			next()
-			args()
-			accept(RPAREN)
+		if (blockExpr()) {
 			return true
 		}
-		
+		if(isTokenOneOf(LPAREN, LCURL)){
+			val t = if(token == LPAREN) RPAREN else RCURL
+			next()
+			args()
+			accept(t)
+			return true
+		}	
+
 		false
 	}
 
@@ -1173,6 +1167,9 @@ class FParser(lexer: IFLexer) {
 				} else if (isToken(LCURL)) {
 					block()
 					accept(RCURL)
+				} else if(isToken(EQ)){
+					next()
+					expr()
 				}
 				return true
 			} else if (isToken(THIS)) {
