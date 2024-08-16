@@ -36,13 +36,16 @@ class FTokenizer private(val reader: UnicodeReader) {
 	var tk: FTokenKind = null
 	var errPos = -1
 	var name: String = null
-
-	def  readToken(): FToken = {
-		val t = _readToken()
-		//println("Tokenizer read token: " + t)
-		t
+	
+	def pushState(): Int = {
+		reader.pushState()
 	}
-	def _readToken(): FToken = {
+	
+	def popState(stateId: Int, discard: Boolean): Unit = {
+		reader.popState(stateId, discard)
+	}
+	
+	def readToken(): FToken = {
 		reader.sp = 0
 		name = null
 		radix = 0

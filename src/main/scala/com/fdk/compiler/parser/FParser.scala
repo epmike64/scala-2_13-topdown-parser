@@ -19,6 +19,14 @@ class FParser(lexer: IFLexer) {
 		println(s"Next=[${token}]")
 	}
 
+	def pushState(): Unit = {
+		lexer.pushState()
+	}
+
+	def popState(stateId: Int, discard: Boolean): Unit = {
+		lexer.popState(stateId, discard)
+	}
+
 	def skip(n: Int): Unit = {
 		if (n == 1) next()
 		else if (n > 1) token = lexer.skip(n)
@@ -872,13 +880,23 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def argumentExprs(): Boolean = {
-		if (isTokenOneOf(LPAREN, LCURL)) {
-			val left = token
+		if(isToken(LCURL)){
+			if(blockExpr()){
+				return true
+			}
 			next()
-			args() // blockExpr()
-			accept(if (left.kind == LPAREN) RPAREN else RCURL)
+			args()
+			accept(RCURL)
+			return false
+		}	
+		
+		if(isToken(LPAREN)){
+			next()
+			args()
+			accept(RPAREN)
 			return true
 		}
+		
 		false
 	}
 

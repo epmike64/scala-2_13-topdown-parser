@@ -8,6 +8,14 @@ class Scanner(val tokenizer: FTokenizer) extends IFLexer {
 	var token: FToken = null
 	val savedTokens = collection.mutable.ArrayBuffer[FToken]()
 
+	def pushState(): Int = {
+		tokenizer.pushState()
+	}
+	
+	def popState(stateId: Int, discard: Boolean): Unit = {
+		popState(stateId, discard)
+	}
+	
 	def currentToken(): FToken = lookAhead(0)
 
 	override def lookAhead(lookahead: Int): FToken = {

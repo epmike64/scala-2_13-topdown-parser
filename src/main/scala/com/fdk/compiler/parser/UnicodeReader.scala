@@ -3,9 +3,10 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.LayoutChars.*
 import com.fdk.compiler.parser.UnicodeReader.surrogatesSupported
 import com.fdk.compiler.util.FArrUtil
+import scala.collection.mutable.Stack
 
 object UnicodeReader {
-
+	var stateId = -1
 	lazy val surrogatesSupported = {
 		try {
 			Character.isHighSurrogate('a')
@@ -26,7 +27,7 @@ class UnicodeReader(val buf: Array[Char]) {
 	 */
 	var sbuf = new Array[Char](128)
 	var sp = 0
-
+	
 	if(buf.length > 0 && Character.isWhitespace(buf(buf.length - 1))) {
 		buf(buf.length - 1) = EOI
 	} else {
@@ -37,8 +38,30 @@ class UnicodeReader(val buf: Array[Char]) {
 	var bp = -1
 	val buflen = buf.length - 1
 
+	case class State(stateId: Int, bp: Int, ch: Char, unicodeConversionBp: Int, sbuf: Array[Char], sp: Int)
+	val stateStack = Stack[State]()
+	
 	scanChar()
-
+	
+	import UnicodeReader._
+	def pushState(): Int = {
+		stateId += 1
+		stateStack.push(State(stateId, bp, ch, unicodeConversionBp, sbuf, sp))
+		stateId
+	}
+	
+	def popState(stateId: Int, discard: Boolean): Unit = {
+		val state = stateStack.pop()
+		assert(state.stateId == stateId, "popState: wrong state id")
+		if(!discard) {
+			bp = state.bp
+			ch = state.ch
+			unicodeConversionBp = state.unicodeConversionBp
+			sbuf = state.sbuf
+			sp = state.sp
+		}
+	}
+	
 	def scanChar(): Unit = {
 		if(bp < buflen) {
 			bp += 1
