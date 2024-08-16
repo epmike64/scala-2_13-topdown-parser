@@ -18,7 +18,7 @@ object UnicodeReader {
 	def apply(buf: Array[Char]): UnicodeReader = new UnicodeReader(buf)
 }
 
-class UnicodeReader(val buf: Array[Char]) {
+class UnicodeReader(var buf: Array[Char]) {
 
 	/** The buffer index of the last converted unicode character
 	 */
@@ -31,7 +31,7 @@ class UnicodeReader(val buf: Array[Char]) {
 	if(buf.length > 0 && Character.isWhitespace(buf(buf.length - 1))) {
 		buf(buf.length - 1) = EOI
 	} else {
-		buf :+ EOI
+		buf  = buf :+ EOI
 	}
 
 	var ch = EOI
