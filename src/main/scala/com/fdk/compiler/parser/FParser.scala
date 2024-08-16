@@ -896,7 +896,7 @@ class FParser(lexer: IFLexer) {
 
 	def constr(): Unit = {
 		simpleType()
-		argumentExprs() //*
+		while(argumentExprs()){} 
 	}
 
 	def classParents(): Unit = {

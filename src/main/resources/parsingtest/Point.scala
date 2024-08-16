@@ -1,7 +1,10 @@
 class AddingHoldingFlag1(val transformation: KingTransformation) extends TransformationTrait{
 
-	def concatTest() = {
-		val a = "test" + "test" + "test"
-		val schema = StructType(Seq( StructField(Fields.Alpha + "_trc", StringType), StructField(Fields.Beta + "_trc", DecimalType(10,0)), StructField(Fields.Gamma, StringType) ))
+	def addingHoldingFlag1(previousDF: DataFrame): DataFrame = {
+		// adding holding flag field when a customer has at least one account valid and is in scope for CS
+		val addingFlag = previousDF
+				.withColumn(Forms.HOLD_1, when(col(Forms.capamer).contains("WER") && col(Forms.FLCOUNT) === 1, lit("YES"))
+						.otherwise(lit("NO")))
+		addingFlag
 	}
 }
