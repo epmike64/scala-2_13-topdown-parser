@@ -583,8 +583,8 @@ class FTokenizer private(val reader: UnicodeReader) {
 		var isLoop = true
 		while (isLoop) {
 			reader.putChar(false)
-			val name = reader.name()
-			val tk1 = FToken.lookupKind(name)
+			val newname = reader.name()
+			val tk1 = FToken.lookupKind(newname)
 			if (tk1 == FTokenKind.ID) {
 				reader.sp -= 1
 				isLoop = false //break //todo: break is not supported
