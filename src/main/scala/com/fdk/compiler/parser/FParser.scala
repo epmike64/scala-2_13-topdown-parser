@@ -15,8 +15,12 @@ class FParser(lexer: IFLexer) {
 	private[this] var token: FToken = lexer.nextToken()
 
 	def next(): Unit = {
+		val prev = token
 		token = lexer.nextToken()
 		println(s"Next=[${token}]")
+		if(prev.kind == token.kind) {
+			println(s"Next & prev tokens are same")
+		}
 	}
 
 	def pushState(): Unit = {
@@ -396,11 +400,10 @@ class FParser(lexer: IFLexer) {
 		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
 			ident()
 			next()
-			assrt(pattern3())
-		} else {
-			assrt(pattern3())
+			pattern3()
+			return true
 		}
-		true
+		pattern3()
 	}
 
 	def pattern1(): Boolean = {
@@ -537,7 +540,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleExpr1(): Boolean = {
-		if(isToken(UNDERSCORE)){
+		if (isToken(UNDERSCORE)) {
 			next()
 			simpleExpr1Rest()
 			return true
@@ -624,8 +627,8 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
-	def prefixDef():Boolean = {
-		if(isTokenOneOf(SUB, PLUS, TILDE, BANG)){
+	def prefixDef(): Boolean = {
+		if (isTokenOneOf(SUB, PLUS, TILDE, BANG)) {
 			next()
 			return true
 		}
@@ -634,10 +637,10 @@ class FParser(lexer: IFLexer) {
 
 	def postfixExpr(): Boolean = {
 		if (infixExpr()) {
-			if(isToken(ID)){
+			if (isToken(ID)) {
 				ident()
 			}
-			while(prefixDef()){
+			while (prefixDef()) {
 				simpleExpr1()
 			}
 			return true
@@ -729,20 +732,26 @@ class FParser(lexer: IFLexer) {
 			return true
 		}
 
-		if(postfixExpr()){
+		if (simpleExpr()) {
+			ident()
+			accept(EQ)
+			expr()
+			return true
+		}
 
-			if (isToken(MATCH)) {
+		if (simpleExpr1()) {
+			if (isTokenPrefix(UNDERSCORE, ID)) {
 				next()
-				accept(LCURL)
-				while (token.kind != RCURL) {
-					next()
-					caseClause()
-				}
-				next()
+				ident()
+				accept(EQ)
+				expr()
 				return true
 			}
 
-			if(ascription()){
+			if (isToken(ID)) {
+				ident()
+				accept(EQ)
+				expr()
 				return true
 			}
 
@@ -751,27 +760,97 @@ class FParser(lexer: IFLexer) {
 				expr()
 				return true
 			}
-
-			if(isToken(ID)){
-				ident()
-				accept(EQ)
-				expr()
-				return true
-			}
-
-			if(isToken(EQ)){
-				next()
-				expr()
-				return true
-			}
-
 			return true
+		}
+
+		if (postfixExpr()) {
+			if (isToken(MATCH)) {
+				next()
+				accept(LCURL)
+				caseClauses()
+				accept(RCURL)
+				return true
+			}
+
+			if (ascription()) {
+				return true
+			}
 		}
 		false
 	}
 
-	def annotations():Boolean = {
-		if(isToken(AT)){
+	//	/*
+	//		SimpleExpr
+	//	 */
+	//		if (isTokenOneOf(NEW, LCURL)) {
+	//			simpleExpr()
+	//		}
+	//
+	//		if(isTokenPrefix(ID, EQ)){
+	//			ident()
+	//			accept(EQ)
+	//			expr()
+	//			return true
+	//		}
+	//
+	//	/*
+	//			SimpleExpr1
+	//	 */
+	//		if (isTokenOneOf(UNDERSCORE, LPAREN)) {
+	//			simpleExpr1()
+	//		}
+	//
+	//		/*
+	//
+	//		 */
+	//		if(isTokenOneOf(SUB, PLUS, BANG, TILDE)){
+	//			postfixExpr()
+	//		}
+	//
+	//		throw new IllegalArgumentException(s"Unexpected Token ${token.kind}")
+
+
+	//		if(postfixExpr()){
+	//
+	//			if (isToken(MATCH)) {
+	//				next()
+	//				accept(LCURL)
+	//				while (token.kind != RCURL) {
+	//					next()
+	//					caseClause()
+	//				}
+	//				next()
+	//				return true
+	//			}
+	//
+	//			if(ascription()){
+	//				return true
+	//			}
+	//
+	//			if (argumentExprs()) {
+	//				accept(EQ)
+	//				expr()
+	//				return true
+	//			}
+	//
+	//			if(isToken(ID)){
+	//				ident()
+	//				accept(EQ)
+	//				expr()
+	//				return true
+	//			}
+	//
+	//			if(isToken(EQ)){
+	//				next()
+	//				expr()
+	//				return true
+	//			}
+	//
+	//			return true
+	//		}
+
+	def annotations(): Boolean = {
+		if (isToken(AT)) {
 			while ( {
 				next()
 				simpleType()
@@ -784,11 +863,11 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def ascription(): Boolean = {
-		if(isToken(COLON)){
-			if(isTokenPrefix(UNDERSCORE, STAR)){
+		if (isToken(COLON)) {
+			if (isTokenPrefix(UNDERSCORE, STAR)) {
 				skip(2)
 				return true
-			} else if(annotations() || infixType()){
+			} else if (annotations() || infixType()) {
 				return true
 			}
 		}
@@ -883,20 +962,20 @@ class FParser(lexer: IFLexer) {
 		if (blockExpr()) {
 			return true
 		}
-		if(isTokenOneOf(LPAREN, LCURL)){
-			val t = if(token.kind == LPAREN) RPAREN else RCURL
+		if (isTokenOneOf(LPAREN, LCURL)) {
+			val t = if (token.kind == LPAREN) RPAREN else RCURL
 			next()
 			args()
 			accept(t)
 			return true
-		}	
+		}
 
 		false
 	}
 
 	def constr(): Unit = {
 		simpleType()
-		while(argumentExprs()){} 
+		while (argumentExprs()) {}
 	}
 
 	def classParents(): Unit = {
@@ -908,7 +987,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def pattern3(): Boolean = {
-		assrt(simplePattern())
+		simplePattern()
 		while (isToken(ID)) {
 			ident()
 			assert(simplePattern())
@@ -1167,7 +1246,7 @@ class FParser(lexer: IFLexer) {
 				} else if (isToken(LCURL)) {
 					block()
 					accept(RCURL)
-				} else if(isToken(EQ)){
+				} else if (isToken(EQ)) {
 					next()
 					expr()
 				}
@@ -1464,7 +1543,7 @@ class FParser(lexer: IFLexer) {
 	def tmplDef(): Boolean = {
 		var isCase = false
 		if (isToken(CASE)) {
-			if(!isTokenLaOneOf(1, CLASS, OBJECT)){
+			if (!isTokenLaOneOf(1, CLASS, OBJECT)) {
 				return false
 			}
 			isCase = true
