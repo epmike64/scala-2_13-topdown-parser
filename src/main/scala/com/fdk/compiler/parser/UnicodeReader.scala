@@ -74,8 +74,14 @@ class UnicodeReader(var buf: Array[Char]) {
 	 */
 	def scanCommentChar(): Unit = {
 		scanChar()
-		if (ch == '\\') if (peekChar == '\\' && !isUnicode) skipChar()
-		else convertUnicode()
+		if (ch == '\\') {
+			if (peekChar == '\\' && !isUnicode) {
+				skipChar()
+			}
+			else {
+				convertUnicode()
+			}
+		}
 	}
 
 	/** Append a character to sbuf.
