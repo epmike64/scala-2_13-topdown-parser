@@ -540,62 +540,58 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleExpr1(): Boolean = {
-		if (isToken(UNDERSCORE)) {
-			next()
-			simpleExpr1Rest()
-			return true
-		}
-		if (literal() || stableId()) {
-			simpleExpr1Rest()
-			return true
-		} else if (isToken(LPAREN)) {
-			next()
-			if (!isToken(RPAREN)) {
-				exprs()
-			}
-			accept(RPAREN)
-			simpleExpr1Rest()
-			return true
-		} else if (simpleExpr()) {
-			if (isToken(DOT)) {
+		var loop = true
+		var rv = false
+		while(loop) {
+			if (literal() || stableId()) {
+				simpleExpr1Rest()
+			} else if(isToken(UNDERSCORE)){
 				next()
-				accept(ID)
-			} else if (isToken(LBRACKET)) {
-				types()
-				accept(RBRACKET)
+			} else if(isToken(LPAREN)){
+				next()
+				if(!isToken(RPAREN)){
+					exprs()
+				}
+				accept(RPAREN)
+			} else if(simpleExpr()){
+				if(isToken(DOT)){
+					next()
+					ident()
+				} else {
+					assrt(typeArgs())
+				}
+			} else {
+				loop = false
 			}
-			simpleExpr1Rest()
-			return true
+			if(loop){
+				rv = true
+			}
 		}
-		false
+		rv
 	}
 
 	def simpleExpr1Rest(): Boolean = {
 		if (isToken(UNDERSCORE)) {
 			next()
 			simpleExpr1Rest2()
-		} else if (isTokenOneOf(DOT, LBRACKET)) {
-			simpleExpr1Rest2()
-		} else if (isTokenOneOf(LPAREN, LCURL)) {
-			argumentExprs()
-		} else {
-			return false
+			return true
+		} 
+		if(simpleExpr1Rest2()){
+			return true
 		}
-		true
+		argumentExprs()
 	}
 
 	def simpleExpr1Rest2(): Boolean = {
 		if (isToken(DOT)) {
 			next()
 			ident()
-		} else if (isToken(LBRACKET)) {
-			next()
-			types()
-			accept(RBRACKET)
-		} else {
-			return false
+			return true
 		}
-		true
+		if(typeArgs()){
+			return true
+		}
+		false
 	}
 
 	def prefixExpr(): Boolean = {
@@ -875,19 +871,22 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def args(): Boolean = {
-		if (expr()) {
+		var isExpr = false
+		if (exprs()) {
+			isExpr = true
 			while (isToken(COMMA)) {
 				next()
-				expr()
+				exprs()
 			}
-			return true
-		} else if (postfixExpr()) {
+		} 
+			
+		if (postfixExpr()) {
 			if (isTokenOneOf(COLON, UNDERSCORE, STAR)) {
 				next()
 			}
 			return true
 		}
-		false
+		isExpr
 	}
 
 	def bindings(): Boolean = {
