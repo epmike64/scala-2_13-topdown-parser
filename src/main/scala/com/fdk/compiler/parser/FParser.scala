@@ -15,8 +15,12 @@ class FParser(lexer: IFLexer) {
 	private[this] var token: FToken = lexer.nextToken()
 
 	def next(): Unit = {
+		val prev = token
 		token = lexer.nextToken()
 		println(s"Next=[${token}]")
+		if(prev.kind == token.kind) {
+			println(s"Next & prev tokens are same")
+		}
 	}
 
 	def pushState(): Unit = {
