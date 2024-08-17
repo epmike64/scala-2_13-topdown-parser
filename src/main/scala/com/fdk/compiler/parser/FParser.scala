@@ -540,37 +540,70 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleExpr1(): Boolean = {
-		var loop = true
-		var rv = false
-		while(loop) {
-			if (literal() || stableId()) {
-				simpleExpr1Rest()
-			} else if(isToken(UNDERSCORE)){
-				next()
-			} else if(isToken(LPAREN)){
-				next()
-				if(!isToken(RPAREN)){
-					exprs()
-				}
-				accept(RPAREN)
-			} else if(simpleExpr()){
-				if(isToken(DOT)){
-					next()
-					ident()
-				} else {
-					assrt(typeArgs())
-				}
-			} else {
-				loop = false
-			}
-			if(loop){
-				rv = true
-			}
+		if (literal() || stableId()){
+			simpleExpr1Rest()
+			return true
 		}
-		rv
+		if(isToken(UNDERSCORE)){
+			next()
+			simpleExpr1Rest()
+			return true
+		}
+		if(isToken(LPAREN)){
+			next()
+			if(!isToken(RPAREN)){
+				exprs()
+			}
+			accept(RPAREN)
+			simpleExpr1Rest()
+			return true
+		}
+		if(simpleExpr()){
+			if(isToken(DOT)){
+				next()
+				ident()
+				simpleExpr1Rest()
+				return true
+			}
+			assrt(typeArgs())
+			simpleExpr1Rest()
+			return true
+		}
+		false
+	}
+	
+	def simpleExpr1Rest(): Boolean = {
+		if(isTokenPrefix(UNDERSCORE, DOT)){
+			skip(2)
+			ident()
+			simpleExpr1Rest()
+			return true
+		}
+		if(isTokenPrefix(UNDERSCORE, LBRACKET)){
+			next()
+			typeArgs()
+			simpleExpr1Rest()
+			return true
+		}
+		if(isToken(DOT)) {
+			next()
+			ident()
+			simpleExpr1Rest()
+			return true
+		}
+		if(isToken(LBRACKET)){
+			typeArgs()
+			simpleExpr1Rest()
+			return true
+		} 
+		if(argumentExprs()){
+			simpleExpr1Rest()
+			return true
+		} 
+		false
 	}
 
-	def simpleExpr1Rest(): Boolean = {
+	def simpleExpr1Rest_OLD(): Boolean = {
 		if (isToken(UNDERSCORE)) {
 			next()
 			simpleExpr1Rest2()
