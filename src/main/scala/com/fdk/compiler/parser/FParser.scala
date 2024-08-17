@@ -736,14 +736,15 @@ class FParser(lexer: IFLexer) {
 		}
 
 		if (simpleExpr1()) {
-			if (isTokenPrefix(UNDERSCORE, ID)) {
+			var suffix = false
+			if(isToken(UNDERSCORE)){
 				next()
-				ident()
-				accept(EQ)
-				expr()
-				return true
+				suffix = true
 			}
-
+			if (isToken(DOT)) {
+				next()
+				suffix = true
+			}
 			if (isToken(ID)) {
 				ident()
 				accept(EQ)
@@ -751,7 +752,7 @@ class FParser(lexer: IFLexer) {
 				return true
 			}
 
-			if (argumentExprs()) {
+			if (!suffix && argumentExprs()) {
 				accept(EQ)
 				expr()
 				return true
@@ -986,7 +987,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def pattern3(): Boolean = {
-		simplePattern()
+		assrt(simplePattern())
 		while (isToken(ID)) {
 			ident()
 			assert(simplePattern())
