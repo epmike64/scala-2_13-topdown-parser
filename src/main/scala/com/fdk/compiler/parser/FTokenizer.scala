@@ -36,15 +36,15 @@ class FTokenizer private(val reader: UnicodeReader) {
 	var tk: FTokenKind = null
 	var errPos = -1
 	var name: String = null
-	
+
 	def pushState(): Int = {
 		reader.pushState()
 	}
-	
+
 	def popState(stateId: Int, discard: Boolean): Unit = {
 		reader.popState(stateId, discard)
 	}
-	
+
 	def readToken(): FToken = {
 		reader.sp = 0
 		name = null
@@ -171,52 +171,52 @@ class FTokenizer private(val reader: UnicodeReader) {
 							reader.scanCommentChar()
 							reader.ch != LayoutChars.CR && reader.ch != LayoutChars.LF && reader.bp < reader.buflen
 						}) {}
-
-						if (reader.bp < reader.buflen) {
-							//comments = addComment(comments, processComment(pos, reader.bp, CommentStyle.LINE));
-						}
 						//break //todo: break is not supported
-					}
-					else if (reader.ch == '*') {
-						var isEmpty = false
-						reader.scanChar()
-						//CommentStyle style;
+					} else {
 						if (reader.ch == '*') {
-							//style = CommentStyle.JAVADOC;
-							reader.scanCommentChar()
-							if (reader.ch == '/') isEmpty = true
-						}
-						else {
-							// style = CommentStyle.BLOCK;
-						}
-						{
-							var locLoop = true
-							while (locLoop && !isEmpty && reader.bp < reader.buflen) {
-								if (reader.ch == '*') {
-									reader.scanChar()
-									if (reader.ch == '/') locLoop = false //todo: break is not supported
-								}
-								else {
-									reader.scanCommentChar()
+							var isEmpty = false
+							reader.scanChar()
+							//CommentStyle style;
+							if (reader.ch == '*') {
+								//style = CommentStyle.JAVADOC;
+								reader.scanCommentChar()
+								if (reader.ch == '/') isEmpty = true
+							}
+							else {
+								// style = CommentStyle.BLOCK;
+							}
+							{
+								var locLoop = true
+								while (locLoop && !isEmpty && reader.bp < reader.buflen) {
+									if (reader.ch == '*') {
+										reader.scanChar()
+										if (reader.ch == '/') locLoop = false //todo: break is not supported
+									}
+									else {
+										reader.scanCommentChar()
+									}
 								}
 							}
-						}
-						if (reader.ch == '/') {
-							reader.scanChar()
-							//comments = addComment(comments, processComment(pos, reader.bp, style));
-							//break //todo: break is not supported
+							if (reader.ch == '/') {
+								reader.scanChar()
+								//break //todo: break is not supported
+							}
+							else {
+								lexError(pos, "unclosed.comment")
+								isLoop = false // todo: label break is not supported
+							}
 						}
 						else {
-							lexError(pos, "unclosed.comment")
+							if (reader.ch == '=') {
+								tk = FTokenKind.SLASHEQ
+								reader.scanChar()
+							}
+							else {
+								tk = FTokenKind.SLASH
+							}
 							isLoop = false // todo: label break is not supported
 						}
 					}
-					else if (reader.ch == '=') {
-						tk = FTokenKind.SLASHEQ
-						reader.scanChar()
-					}
-					else tk = FTokenKind.SLASH
-					isLoop = false // todo: label break is not supported
 
 				case '\'' =>
 					reader.scanChar()
@@ -568,7 +568,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 
 				case 16 =>
 					lexError(pos, "invalid.hex.number")
-               
+
 				case _ => // do nothing
 			}
 			if (reader.ch == 'l' || reader.ch == 'L') {
