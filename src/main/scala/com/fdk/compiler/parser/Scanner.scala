@@ -33,8 +33,11 @@ class Scanner(val tokenizer: FTokenizer) extends IFLexer {
 	}
 
 	override def nextToken(): FToken = {
-		if (!savedTokens.isEmpty) token = savedTokens.remove(0)
-		else token = tokenizer.readToken()
+		if (!savedTokens.isEmpty) {
+			token = savedTokens.remove(0)
+		} else {
+			token = tokenizer.readToken()
+		}
 		token
 	}
 

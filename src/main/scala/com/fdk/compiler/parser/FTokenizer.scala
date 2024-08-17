@@ -246,7 +246,9 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false // todo: label break is not supported
 
 				case _ =>
-					if (isSpecial(reader.ch)) scanOperator()
+					if (isSpecial(reader.ch)) {
+						scanOperator()
+					}
 					else {
 						var isJavaIdentifierStart = false
 						var codePoint = -1
@@ -583,22 +585,24 @@ class FTokenizer private(val reader: UnicodeReader) {
 		var isLoop = true
 		while (isLoop) {
 			reader.putChar(false)
-			val name = reader.name()
-			val tk1 = FToken.lookupKind(name)
+			val newname = reader.name()
+			val tk1 = FToken.lookupKind(newname)
 			if (tk1 == FTokenKind.ID) {
 				reader.sp -= 1
 				isLoop = false //break //todo: break is not supported
 			} else {
 				tk = tk1
 				reader.scanChar()
-				if (!isSpecial(reader.ch)) isLoop = false //todo: break is not supported
+				if (!isSpecial(reader.ch)) {
+					isLoop = false
+				} //todo: break is not supported
 			}
 		}
 	}
 
 	private def isSpecial(ch: Char): Boolean = {
 		ch match {
-			case '!' | '%' | '&' | '*' | '?' | '+' | '-' | ':' | '<' | '=' | '>' | '^' | '|' | '~' | '@' =>
+			case '!' | '#' | '%' | '&' | '*' | '+' | '-' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~' =>
 				true
 			case _ =>
 				false
