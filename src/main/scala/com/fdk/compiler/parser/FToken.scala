@@ -139,8 +139,12 @@ object FToken {
 		map
 	}
 
-	def lookupKind(name: String): FTokenKind = {
-		tokens.getOrElse(name, FTokenKind.ID)
+	def lookupKind(name: String, specChar: Boolean = false): FTokenKind = {
+		val tk = tokens.get(name)
+		tk match {
+			case Some(kind) => kind
+			case None => if(!specChar) FTokenKind.ID else throw new IllegalArgumentException(s"Unknown token $name") //FTokenKind.ERROR
+		}
 	}
 }
 
