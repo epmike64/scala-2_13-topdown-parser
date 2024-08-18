@@ -598,7 +598,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 
 	private def isSpecial(ch: Char): Boolean = {
 		ch match {
-			case '!' | '%' | '&' | '*' | '?' | '+' | '-' | ':' | '<' | '=' | '>' | '^' | '|' | '~' | '@' =>
+			case '!' |  '#' | '%' | '&' | '*' | '+' | '-' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' |  '^' | '|' | '~'  =>
 				true
 			case _ =>
 				false
