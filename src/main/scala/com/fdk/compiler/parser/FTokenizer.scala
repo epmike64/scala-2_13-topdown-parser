@@ -3,6 +3,7 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FTokenizer.hexFloatsWork
 import com.fdk.compiler.parser.LayoutChars.{CR, EOI, LF}
 import com.fdk.compiler.parser.FToken.FTokenKind
+import com.fdk.compiler.parser.FToken.FTokenKind.{DO, ID}
 import com.sun.tools.javac.util.Assert
 
 object FTokenizer {
@@ -65,9 +66,9 @@ class FTokenizer private(val reader: UnicodeReader) {
 				case 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
 					  | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 					  | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n'
-					  | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' | '$' | '_' =>
+					  | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' | '$' =>
 					scanIdent()
-					isLoop = false // loop // todo: label break is not supported
+					isLoop = false
 
 				case '0' =>
 					reader.scanChar()
@@ -164,58 +165,114 @@ class FTokenizer private(val reader: UnicodeReader) {
 					tk = FTokenKind.RCURL
 					isLoop = false // todo: label break is not supported
 
+				case '_' =>
+					reader.scanChar()
+					if (isSpec) {
+						tk = FTokenKind.UNDERSCORE
+					} else {
+						scanIdent()
+					}
+					isLoop = false
+
+				case ':' =>
+					reader.scanChar()
+					if (!isSpec) {
+						tk = FTokenKind.COLON
+					} else {
+						scanOpIdent()
+					}
+					isLoop = false
+
+				case '#' =>
+					reader.scanChar()
+					if (!isSpec) {
+						tk = FTokenKind.POUND
+					} else {
+						scanOpIdent()
+					}
+					isLoop = false
+
+				case '@' =>
+					reader.scanChar()
+					if (!isSpec) {
+						tk = FTokenKind.AT
+					} else {
+						scanOpIdent()
+					}
+					isLoop = false
+
+				case '=' =>
+					reader.putChar(true)
+					if (reader.ch == '>') {
+						reader.scanChar()
+						tk = FTokenKind.FAT_ARROW
+					} else {
+						scanOpIdent()
+					}
+					isLoop = false
+
+				case '<' =>
+					reader.putChar(true)
+					if (reader.ch == '-') {
+						reader.scanChar()
+						tk = FTokenKind.LEFT_ARROW
+					}
+					else if (reader.ch == ':') {
+						reader.scanChar()
+						tk = FTokenKind.UPPER_BOUND
+					}
+					else if (reader.ch == '%') {
+						reader.scanChar()
+						tk = FTokenKind.LESS_PERCENT
+					}
+					else {
+						scanOpIdent()
+					}
+					isLoop = false
+
 				case '/' =>
 					reader.scanChar()
+
 					if (reader.ch == '/') {
 						while ( {
-							reader.scanCommentChar()
+							reader.scanCmntCh()
 							reader.ch != LayoutChars.CR && reader.ch != LayoutChars.LF && reader.bp < reader.buflen
 						}) {}
-						//break //todo: break is not supported
-					} else {
+
+					} else if (reader.ch == '*') {
+						var isEmpty = false
+						reader.scanChar()
+
 						if (reader.ch == '*') {
-							var isEmpty = false
-							reader.scanChar()
-							//CommentStyle style;
+							reader.scanCmntCh()
+							if (reader.ch == '/') isEmpty = true
+						}
+
+						var wl = true
+						while (wl && !isEmpty && reader.bp < reader.buflen) {
 							if (reader.ch == '*') {
-								//style = CommentStyle.JAVADOC;
-								reader.scanCommentChar()
-								if (reader.ch == '/') isEmpty = true
-							}
-							else {
-								// style = CommentStyle.BLOCK;
-							}
-							{
-								var locLoop = true
-								while (locLoop && !isEmpty && reader.bp < reader.buflen) {
-									if (reader.ch == '*') {
-										reader.scanChar()
-										if (reader.ch == '/') locLoop = false //todo: break is not supported
-									}
-									else {
-										reader.scanCommentChar()
-									}
-								}
-							}
-							if (reader.ch == '/') {
 								reader.scanChar()
-								//break //todo: break is not supported
+								if (reader.ch == '/') wl = false
 							}
 							else {
-								lexError(pos, "unclosed.comment")
-								isLoop = false // todo: label break is not supported
+								reader.scanCmntCh()
 							}
+						}
+						if (reader.ch == '/') {
+							reader.scanChar()
 						}
 						else {
-							if (reader.ch == '=') {
-								tk = FTokenKind.SLASHEQ
-								reader.scanChar()
-							}
-							else {
-								tk = FTokenKind.SLASH
-							}
-							isLoop = false // todo: label break is not supported
+							lexError(pos, "unclosed.comment")
+							isLoop = false
 						}
+					}
+					else {
+						if (isSpec) {
+							scanOpIdent()
+						} else {
+							tk = FTokenKind.SLASH
+						}
+						isLoop = false
 					}
 
 				case '\'' =>
@@ -247,10 +304,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 
 				case _ =>
 					if (isSpecial(reader.ch)) {
-						tk = FToken.lookupKind(s"${reader.ch}", true)
-						reader.scanChar()
-						print(" -- tk: " + tk)
-						println()
+						scanOpIdent()
 					}
 					else {
 						var isJavaIdentifierStart = false
@@ -306,10 +360,65 @@ class FTokenizer private(val reader: UnicodeReader) {
 		}
 	}
 
+	def scanOpIdent(): Unit = {
+		while ( {
+			reader.putChar(true)
+			isSpec
+		}) {}
+		name = reader.name()
+		tk = ID
+	}
 
-	/** Read an identifier.
-	 */
+	def isSpec: Boolean = {
+		isSpecial(reader.ch)
+	}
+
+	def isSpecial(ch: Char): Boolean = {
+		// No underscore
+		ch match {
+			case '!' | '#' | '%' | '&' | '*' | '+' | '-' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~' =>
+				true
+			case _ =>
+				false
+		}
+	}
+
 	private def scanIdent(): Unit = {
+
+		var isLoop = true
+		var specAllow = false
+
+		while (isLoop) {
+			val prev = reader.ch
+			reader.putChar(true)
+
+			reader.ch match {
+				case '_' =>
+					specAllow = true
+
+				case 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L'
+					  | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X'
+					  | 'Y' | 'Z' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k'
+					  | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w'
+					  | 'x' | 'y' | 'z' | '$'
+					  | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' =>
+					if (prev == '_') {
+						specAllow = false
+					} else if (specAllow) {
+						isLoop = false
+					}
+
+				case _ =>
+					if (!specAllow || !isSpec) {
+						isLoop = false
+					}
+			}
+		}
+		name = reader.name()
+		tk = ID
+	}
+
+	private def scanIdent_OLD(): Unit = {
 		var isJavaIdentifierPart = false
 		val high = 0
 		reader.putChar(true)
@@ -584,12 +693,13 @@ class FTokenizer private(val reader: UnicodeReader) {
 		}
 	}
 
-	private def isSpecial(ch: Char): Boolean = {
-		ch match {
-			case '!' |  '#' | '%' | '&' | '*' | '+' | '-' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' |  '^' | '|' | '~'  =>
-				true
-			case _ =>
-				false
-		}
-	}
+	//	def scanSpecial():Unit = {
+	//		var loop = true
+	//		while(loop) {
+	//			reader.putChar(false)
+	//			val newname = reader.name()
+	//			val newtk = FToken.lookupKind(newname)
+	//		}
+	//	}
+
 }

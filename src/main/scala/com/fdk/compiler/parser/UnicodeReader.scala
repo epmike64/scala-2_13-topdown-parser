@@ -72,7 +72,7 @@ class UnicodeReader(var buf: Array[Char]) {
 
 	/** Read next character in comment, skipping over double '\' characters.
 	 */
-	def scanCommentChar(): Unit = {
+	def scanCmntCh(): Unit = {
 		scanChar()
 		if (ch == '\\') {
 			if (peekChar == '\\' && !isUnicode) {

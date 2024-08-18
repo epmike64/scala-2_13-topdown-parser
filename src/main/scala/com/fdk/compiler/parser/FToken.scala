@@ -58,7 +58,6 @@ object FToken {
 		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
 		case STRINGLITERAL extends FTokenKind(null, FTokenTag.STRING)
 		case BOOLEANLITERAL extends FTokenKind(null, FTokenTag.NAMED)
-
 		case ID extends FTokenKind(null, FTokenTag.NAMED)
 
 		case EOF extends FTokenKind(null, FTokenTag.DEFAULT)
@@ -71,11 +70,7 @@ object FToken {
 		case TRANSIENT extends FTokenKind("transient", FTokenTag.DEFAULT)
 		case VOLATILE extends FTokenKind("volatile", FTokenTag.DEFAULT)
 
-		case AT extends FTokenKind("@", FTokenTag.DEFAULT)
-		case FAT_ARROW extends FTokenKind("=>", FTokenTag.DEFAULT)
-		case LEFT_ARROW extends FTokenKind("<-", FTokenTag.DEFAULT)
-		case RIGHT_ARROW extends FTokenKind("->", FTokenTag.DEFAULT)
-		case UNDERSCORE extends FTokenKind("_", FTokenTag.NAMED)
+
 		case LPAREN extends FTokenKind("(", FTokenTag.DEFAULT)
 		case RPAREN extends FTokenKind(")", FTokenTag.DEFAULT)
 		case LCURL extends FTokenKind("{", FTokenTag.DEFAULT)
@@ -86,47 +81,33 @@ object FToken {
 		case COMMA extends FTokenKind(",", FTokenTag.DEFAULT)
 		case DOT extends FTokenKind(".", FTokenTag.DEFAULT)
 		case ELLIPSIS extends FTokenKind("...", FTokenTag.DEFAULT)
-		case EQ extends FTokenKind("=", FTokenTag.DEFAULT)
 		case GT extends FTokenKind(">", FTokenTag.DEFAULT)
 		case LT extends FTokenKind("<", FTokenTag.DEFAULT)
 		case BANG extends FTokenKind("!", FTokenTag.DEFAULT)
 		case TILDE extends FTokenKind("~", FTokenTag.DEFAULT)
-		case QUES extends FTokenKind("?", FTokenTag.DEFAULT)
-		case EQEQ extends FTokenKind("==", FTokenTag.DEFAULT)
-		case LTEQ extends FTokenKind("<=", FTokenTag.DEFAULT)
-		case GTEQ extends FTokenKind(">=", FTokenTag.DEFAULT)
-		case BANGEQ extends FTokenKind("!=", FTokenTag.DEFAULT)
-		case AMPAMP extends FTokenKind("&&", FTokenTag.DEFAULT)
+
+
+		case UNDERSCORE extends FTokenKind("_", FTokenTag.DEFAULT)
+		case COLON extends FTokenKind(":", FTokenTag.DEFAULT)
+		case EQ extends FTokenKind("=", FTokenTag.DEFAULT)
+		case FAT_ARROW extends FTokenKind("=>", FTokenTag.DEFAULT)
+		case LEFT_ARROW extends FTokenKind("<-", FTokenTag.DEFAULT)
+
+		case UPPER_BOUND extends FTokenKind("<:", FTokenTag.DEFAULT)
+		case LESS_PERCENT extends FTokenKind("<%", FTokenTag.DEFAULT)
+		case LOWER_BOUND extends FTokenKind(">:", FTokenTag.DEFAULT)
+		case POUND extends FTokenKind("#", FTokenTag.DEFAULT)
+		case AT extends FTokenKind("@", FTokenTag.DEFAULT)
+
 		case AMP extends FTokenKind("&", FTokenTag.DEFAULT)
-		case PIPEPIPE extends FTokenKind("||", FTokenTag.DEFAULT)
 		case PIPE extends FTokenKind("|", FTokenTag.DEFAULT)
-		case PLUSPLUS extends FTokenKind("++", FTokenTag.DEFAULT)
 		case PLUS extends FTokenKind("+", FTokenTag.DEFAULT)
-		case SUBSUB extends FTokenKind("--", FTokenTag.DEFAULT)
 		case SUB extends FTokenKind("-", FTokenTag.DEFAULT)
 		case STAR extends FTokenKind("*", FTokenTag.DEFAULT)
 		case SLASH extends FTokenKind("/", FTokenTag.DEFAULT)
-
+		case SLASHEQ extends FTokenKind("/=", FTokenTag.DEFAULT)
 		case CARET extends FTokenKind("^", FTokenTag.DEFAULT)
 		case PERCENT extends FTokenKind("%", FTokenTag.DEFAULT)
-		case LTLT extends FTokenKind("<<", FTokenTag.DEFAULT)
-		case GTGT extends FTokenKind(">>", FTokenTag.DEFAULT)
-		case GTGTGT extends FTokenKind(">>>", FTokenTag.DEFAULT)
-		case PLUSEQ extends FTokenKind("+=", FTokenTag.DEFAULT)
-		case SUBEQ extends FTokenKind("-=", FTokenTag.DEFAULT)
-		case STAREQ extends FTokenKind("*=", FTokenTag.DEFAULT)
-		case SLASHEQ extends FTokenKind("/=", FTokenTag.DEFAULT)
-		case AMPEQ extends FTokenKind("&=", FTokenTag.DEFAULT)
-		case BAREQ extends FTokenKind("|=", FTokenTag.DEFAULT)
-		case CARETEQ extends FTokenKind("^=", FTokenTag.DEFAULT)
-		case PERCENTEQ extends FTokenKind("%=", FTokenTag.DEFAULT)
-		case UPPER_BOUND extends FTokenKind("<:", FTokenTag.DEFAULT)
-		case LOWER_BOUND extends FTokenKind(">:", FTokenTag.DEFAULT)
-		case GTGTEQ extends FTokenKind(">>=", FTokenTag.DEFAULT)
-		case GTGTGTEQ extends FTokenKind(">>>=", FTokenTag.DEFAULT)
-		case COLONCOLON extends FTokenKind("::", FTokenTag.DEFAULT)
-		case COLON extends FTokenKind(":", FTokenTag.DEFAULT)
-		case POUND extends FTokenKind("#", FTokenTag.DEFAULT)
 	}
 
 	private lazy val tokens = {
@@ -139,12 +120,8 @@ object FToken {
 		map
 	}
 
-	def lookupKind(name: String, specChar: Boolean = false): FTokenKind = {
-		val tk = tokens.get(name)
-		tk match {
-			case Some(kind) => kind
-			case None => if(!specChar) FTokenKind.ID else throw new IllegalArgumentException(s"Unknown token $name") //FTokenKind.ERROR
-		}
+	def lookupKind(name: String): FTokenKind = {
+		 tokens.getOrElse(name, FTokenKind.ID)
 	}
 }
 
