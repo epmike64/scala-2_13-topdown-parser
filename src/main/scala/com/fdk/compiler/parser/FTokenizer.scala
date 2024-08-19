@@ -57,6 +57,10 @@ class FTokenizer private(val reader: UnicodeReader) {
 		while (isLoop) {
 			pos = reader.bp
 			reader.ch match {
+				case EOI =>
+					tk = FTokenKind.EOF
+					isLoop = false
+					
 				case ' ' | '\t' | '\n' | '\r' | '\f' =>
 					while ( {
 						reader.scanChar()
@@ -222,42 +226,30 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '/' =>
-					putChar(true)
 
-					if (reader.ch == '/') {
+					if (reader.peekChar == '/') {
+						scanChar()
 						while ( {
-							reader.scanCmntCh()
-							reader.ch != LayoutChars.CR && reader.ch != LayoutChars.LF && reader.bp < reader.buflen
+							scanChar()
+							reader.ch != '\n' && reader.ch != '\r' && reader.ch != EOI
 						}) {}
 
-					} else if (reader.ch == '*') {
-						var isEmpty = false
-						reader.scanChar()
-
-						if (reader.ch == '*') {
-							reader.scanCmntCh()
-							if (reader.ch == '/') isEmpty = true
-						}
-
+					} else if (reader.peekChar == '*') {
+						scanChar()
 						var wl = true
-						while (wl && !isEmpty && reader.bp < reader.buflen) {
-							if (reader.ch == '*') {
-								reader.scanChar()
-								if (reader.ch == '/') wl = false
+						while(wl){
+							scanChar()
+							if (reader.ch == '*' && reader.peekChar == '/') {
+								scanChar(2)
+								wl = false
+							} else if(reader.ch == EOI){
+								lexError(pos, "unclosed.comment")
+								wl = false
 							}
-							else {
-								reader.scanCmntCh()
-							}
-						}
-						if (reader.ch == '/') {
-							reader.scanChar()
-						}
-						else {
-							lexError(pos, "unclosed.comment")
-							isLoop = false
 						}
 					}
 					else {
+						putChar(true)
 						scanOpIdent()
 						isLoop = false
 					}
@@ -290,43 +282,15 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false // todo: label break is not supported
 
 				case _ =>
-					if (isSpecial(reader.ch)) {
+					if(isSpec){
+						putChar(true)
 						scanOpIdent()
+						isLoop = false
+					} else {
+						throw new IllegalArgumentException(s"Unexpected character: ${reader.ch}")
+//						lexError(pos, "illegal.char")
+//						isLoop = false
 					}
-					else {
-						var isJavaIdentifierStart = false
-						var codePoint = -1
-						if (reader.ch < '\u0080') {
-							// all ASCII range chars already handled, above
-							isJavaIdentifierStart = false
-						}
-						else {
-							codePoint = reader.peekSurrogates()
-							if (codePoint >= 0) {
-								isJavaIdentifierStart = Character.isJavaIdentifierStart(codePoint)
-								if (isJavaIdentifierStart) reader.putChar(true)
-							} else isJavaIdentifierStart = Character.isJavaIdentifierStart(reader.ch)
-						}
-						if (isJavaIdentifierStart) scanIdent()
-						else if (reader.digit(pos, 10) >= 0) scanNumber(pos, 10)
-						else if (reader.bp == reader.buflen || reader.ch == EOI && reader.bp + 1 == reader.buflen) { // JLS 3.5
-							tk = FTokenKind.EOF
-							pos = reader.buflen
-						}
-						else {
-							var arg: String = null
-							if (codePoint >= 0) {
-								val high = reader.ch
-								reader.scanChar()
-								arg = String.format("\\u%04x\\u%04x", high.toInt, reader.ch.toInt)
-							}
-							else arg = if (32 < reader.ch && reader.ch < 127) String.format("%s", reader.ch)
-							else String.format("\\u%04x", reader.ch.toInt)
-							lexError(pos, "illegal.char", arg)
-							reader.scanChar()
-						}
-					}
-					isLoop = false // todo: label break is not supported
 			}
 		}
 
@@ -347,9 +311,11 @@ class FTokenizer private(val reader: UnicodeReader) {
 		}
 	}
 
-	def scanChar(): Unit = {
-		reader.scanChar()
+	def scanChar(times: Int = 1): Unit = {
+		for(_ <- 0 until times)
+			reader.scanChar()
 	}
+	
 	def putChar(b: Boolean): Unit = {
 		reader.putChar(b)
 	}

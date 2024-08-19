@@ -1,28 +1,29 @@
 
-class Person {
+abstract class Person {
 
-	def -(a: Int): Unit 
-	def *(a: Int): Unit 
-
-	def *(a: Int): Unit = println("Meow")
-
-	def ++(a: Int): Unit = println("Meow")
+	//* def -(a: Int): Unit ****/a
+	def *(a: Int): Char
+	/* def /(a: Int): Unit
+	*/
+	def ++(a: Int): Boolean
 
 	def --(a: Int): Unit = println("Meow")
 
 	def **(a: Int): Unit = println("Meow")
+
 	def <(a: Int): Unit = println("Meow")
+
 	def >(a: Int): Unit = println("Meow")
 
 	def /:(a: Int): Unit = println("Meow")
+
 	def :@(a: Int): Unit = println("Meow")
-	//	def#(a: Int): Unit
-	//	= println("Meow")
 
 	def !(a: Int): Unit = println("Meow")
+
 	//	case '!' | '#' | '%' | '&' | '*' | '+' | '-' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~' =>
-	def ++(x: Int) = {
-		val _h_@   = x
+	def +++(x: Int) = {
+		val _h_@ = x
 	}
 	//	def =(x: Int) = 5 + x
 }
