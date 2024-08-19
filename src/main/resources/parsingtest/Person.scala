@@ -1,8 +1,9 @@
 
 class Person {
+	def ==(a: Int, b: Int): Unit = println("Meow")
+
 
 	def -(a: Int, b: Int): Unit = println("Meow")
-
 	def *(a: Int, b: Int): Unit = println("Meow")
 
 	def /(a: Int, b: Int): Unit = println("Meow")

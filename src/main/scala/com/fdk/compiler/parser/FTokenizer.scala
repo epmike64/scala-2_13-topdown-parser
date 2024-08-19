@@ -166,8 +166,8 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false // todo: label break is not supported
 
 				case '_' =>
-					reader.scanChar()
-					if (isSpec) {
+					putChar(true)
+					if (!isSpec) {
 						tk = FTokenKind.UNDERSCORE
 					} else {
 						scanIdent()
@@ -175,7 +175,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case ':' =>
-					reader.scanChar()
+					putChar(true)
 					if (!isSpec) {
 						tk = FTokenKind.COLON
 					} else {
@@ -184,7 +184,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '#' =>
-					reader.scanChar()
+					putChar(true)
 					if (!isSpec) {
 						tk = FTokenKind.POUND
 					} else {
@@ -193,7 +193,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '@' =>
-					reader.scanChar()
+					putChar(true)
 					if (!isSpec) {
 						tk = FTokenKind.AT
 					} else {
@@ -202,7 +202,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '=' =>
-					reader.putChar(true)
+					putChar(true)
 					if (reader.ch == '>') {
 						reader.scanChar()
 						tk = FTokenKind.FAT_ARROW
@@ -212,7 +212,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '<' =>
-					reader.putChar(true)
+					putChar(true)
 					if (reader.ch == '-') {
 						reader.scanChar()
 						tk = FTokenKind.LEFT_ARROW
@@ -231,7 +231,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false
 
 				case '/' =>
-					reader.scanChar()
+					putChar(true)
 
 					if (reader.ch == '/') {
 						while ( {
@@ -267,16 +267,12 @@ class FTokenizer private(val reader: UnicodeReader) {
 						}
 					}
 					else {
-						if (isSpec) {
-							scanOpIdent()
-						} else {
-							tk = FTokenKind.SLASH
-						}
+						scanOpIdent()
 						isLoop = false
 					}
 
 				case '\'' =>
-					reader.scanChar()
+					scanChar()
 					if (reader.ch == '\'') {
 						lexError(pos, "empty.char.lit")
 						reader.scanChar()
@@ -293,7 +289,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 					isLoop = false // todo: label break is not supported
 
 				case '\"' =>
-					reader.scanChar()
+					scanChar()
 					while (reader.ch != '\"' && reader.ch != CR && reader.ch != LF && reader.bp < reader.buflen) scanLitChar(pos)
 					if (reader.ch == '\"') {
 						tk = FTokenKind.STRINGLITERAL
@@ -360,13 +356,19 @@ class FTokenizer private(val reader: UnicodeReader) {
 		}
 	}
 
+	def scanChar(): Unit = {
+		reader.scanChar()
+	}
+	def putChar(b: Boolean): Unit = {
+		reader.putChar(b)
+	}
+
 	def scanOpIdent(): Unit = {
-		while ( {
+		while(isSpec){
 			reader.putChar(true)
-			isSpec
-		}) {}
+		}
 		name = reader.name()
-		tk = ID
+		tk = FToken.lookupKind(name)
 	}
 
 	def isSpec: Boolean = {

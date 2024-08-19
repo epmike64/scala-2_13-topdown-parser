@@ -104,8 +104,6 @@ object FToken {
 		case PLUS extends FTokenKind("+", FTokenTag.DEFAULT)
 		case SUB extends FTokenKind("-", FTokenTag.DEFAULT)
 		case STAR extends FTokenKind("*", FTokenTag.DEFAULT)
-		case SLASH extends FTokenKind("/", FTokenTag.DEFAULT)
-		case SLASHEQ extends FTokenKind("/=", FTokenTag.DEFAULT)
 		case CARET extends FTokenKind("^", FTokenTag.DEFAULT)
 		case PERCENT extends FTokenKind("%", FTokenTag.DEFAULT)
 	}
