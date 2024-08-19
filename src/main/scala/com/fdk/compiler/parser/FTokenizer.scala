@@ -111,18 +111,9 @@ class FTokenizer private(val reader: UnicodeReader) {
 						reader.putChar('.')
 						scanFractionAndSuffix(pos)
 					}
-					else if (reader.ch == '.') {
-						val savePos = reader.bp
-						reader.putChar('.')
-						reader.putChar('.', true)
-						if (reader.ch == '.') {
-							reader.scanChar()
-							reader.putChar('.')
-							tk = FTokenKind.ELLIPSIS
-						}
-						else lexError(savePos, "illegal.dot")
+					else {
+						tk = FTokenKind.DOT
 					}
-					else tk = FTokenKind.DOT
 					isLoop = false // todo: label break is not supported
 
 				case ',' =>

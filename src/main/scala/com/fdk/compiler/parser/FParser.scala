@@ -280,7 +280,7 @@ class FParser(lexer: IFLexer) {
 			assrt(_type())
 		} else {
 			assrt(_type())
-			if (isToken(STAR)) next()
+			if (isToken(ID)) next()//STAR
 		}
 		true
 	}
@@ -386,7 +386,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def variantTypeParam(): Unit = {
-		if (isTokenOneOf(PLUS, SUB)) {
+		if (isToken(ID)) { //OneOf(PLUS, SUB))
 			next()
 		}
 		typeParam()
@@ -415,7 +415,7 @@ class FParser(lexer: IFLexer) {
 
 	def pattern(): Boolean = {
 		if (pattern1()) {
-			while (isToken(PIPE)) {
+			while (isToken(ID)) {//PIPE
 				next()
 				pattern1()
 			}
@@ -428,7 +428,7 @@ class FParser(lexer: IFLexer) {
 	def patterns(): Unit = {
 		if (token.kind == UNDERSCORE) {
 			next()
-			accept(STAR)
+			accept(ID) //STAR
 		}
 		else {
 			pattern()
@@ -624,7 +624,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def prefixExpr(): Boolean = {
-		if (isTokenOneOf(SUB, PLUS, BANG, TILDE)) {
+		if (isToken(ID)) {//SUB, PLUS, BANG, TILDE
 			next()
 		}
 		if (simpleExpr()) {
@@ -653,7 +653,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def prefixDef(): Boolean = {
-		if (isTokenOneOf(SUB, PLUS, TILDE, BANG)) {
+		if (isToken(ID)) {//SUB, PLUS, TILDE, BANG
 			next()
 			return true
 		}
@@ -890,7 +890,7 @@ class FParser(lexer: IFLexer) {
 
 	def ascription(): Boolean = {
 		if (isToken(COLON)) {
-			if (isTokenPrefix(UNDERSCORE, STAR)) {
+			if (isTokenPrefix(UNDERSCORE, ID)) {// STAR
 				skip(2)
 				return true
 			} else if (annotations() || infixType()) {
@@ -911,7 +911,7 @@ class FParser(lexer: IFLexer) {
 		} 
 			
 		if (postfixExpr()) {
-			if (isTokenOneOf(COLON, UNDERSCORE, STAR)) {
+			if (isTokenOneOf(COLON, UNDERSCORE, ID)) {//STAR
 				next()
 			}
 			return true
@@ -1410,7 +1410,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def literal(): Boolean = {
-		if (isToken(SUB) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
+		if (isToken(ID) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
 			skip(2)
 			return true
 		} else if (isTokenOneOf(INTLITERAL, FLOATLITERAL, STRINGLITERAL, CHARLITERAL, BOOLEANLITERAL, NULL)) {

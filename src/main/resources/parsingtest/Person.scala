@@ -1,27 +1,25 @@
 
 class Person {
-	def ==(a: Int, b: Int): Unit = println("Meow")
 
+	def -(a: Int): Unit 
+	def *(a: Int): Unit 
 
-	def -(a: Int, b: Int): Unit = println("Meow")
-	def *(a: Int, b: Int): Unit = println("Meow")
+	def *(a: Int): Unit = println("Meow")
 
-	def /(a: Int, b: Int): Unit = println("Meow")
+	def ++(a: Int): Unit = println("Meow")
 
-	def ++(a: Int, b: Int): Unit = println("Meow")
+	def --(a: Int): Unit = println("Meow")
 
-	def --(a: Int, b: Int): Unit = println("Meow")
+	def **(a: Int): Unit = println("Meow")
+	def <(a: Int): Unit = println("Meow")
+	def >(a: Int): Unit = println("Meow")
 
-	def **(a: Int, b: Int): Unit = println("Meow")
-	def <(a: Int, b: Int): Unit = println("Meow")
-	def >(a: Int, b: Int): Unit = println("Meow")
-
-	def /:(a: Int, b: Int): Unit = println("Meow")
-	def :@(a: Int, b: Int): Unit = println("Meow")
-	//	def#(a: Int, b: Int): Unit
+	def /:(a: Int): Unit = println("Meow")
+	def :@(a: Int): Unit = println("Meow")
+	//	def#(a: Int): Unit
 	//	= println("Meow")
 
-	def !(a: Int, b: Int): Unit = println("Meow")
+	def !(a: Int): Unit = println("Meow")
 	//	case '!' | '#' | '%' | '&' | '*' | '+' | '-' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~' =>
 	def ++(x: Int) = {
 		val _h_@   = x
