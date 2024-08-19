@@ -80,11 +80,11 @@ object FToken {
 		case SEMI extends FTokenKind(";", FTokenTag.DEFAULT)
 		case COMMA extends FTokenKind(",", FTokenTag.DEFAULT)
 		case DOT extends FTokenKind(".", FTokenTag.DEFAULT)
-		case ELLIPSIS extends FTokenKind("...", FTokenTag.DEFAULT)
-		case GT extends FTokenKind(">", FTokenTag.DEFAULT)
-		case LT extends FTokenKind("<", FTokenTag.DEFAULT)
-		case BANG extends FTokenKind("!", FTokenTag.DEFAULT)
-		case TILDE extends FTokenKind("~", FTokenTag.DEFAULT)
+//		case ELLIPSIS extends FTokenKind("...", FTokenTag.DEFAULT)
+//		case GT extends FTokenKind(">", FTokenTag.DEFAULT)
+//		case LT extends FTokenKind("<", FTokenTag.DEFAULT)
+//		case BANG extends FTokenKind("!", FTokenTag.DEFAULT)
+//		case TILDE extends FTokenKind("~", FTokenTag.DEFAULT)
 
 
 		case UNDERSCORE extends FTokenKind("_", FTokenTag.DEFAULT)
@@ -99,13 +99,13 @@ object FToken {
 		case POUND extends FTokenKind("#", FTokenTag.DEFAULT)
 		case AT extends FTokenKind("@", FTokenTag.DEFAULT)
 
-		case AMP extends FTokenKind("&", FTokenTag.DEFAULT)
-		case PIPE extends FTokenKind("|", FTokenTag.DEFAULT)
-		case PLUS extends FTokenKind("+", FTokenTag.DEFAULT)
-		case SUB extends FTokenKind("-", FTokenTag.DEFAULT)
-		case STAR extends FTokenKind("*", FTokenTag.DEFAULT)
-		case CARET extends FTokenKind("^", FTokenTag.DEFAULT)
-		case PERCENT extends FTokenKind("%", FTokenTag.DEFAULT)
+//		case AMP extends FTokenKind("&", FTokenTag.DEFAULT)
+//		case PIPE extends FTokenKind("|", FTokenTag.DEFAULT)
+//		case PLUS extends FTokenKind("+", FTokenTag.DEFAULT)
+//		case SUB extends FTokenKind("-", FTokenTag.DEFAULT)
+//		case STAR extends FTokenKind("*", FTokenTag.DEFAULT)
+//		case CARET extends FTokenKind("^", FTokenTag.DEFAULT)
+//		case PERCENT extends FTokenKind("%", FTokenTag.DEFAULT)
 	}
 
 	private lazy val tokens = {
