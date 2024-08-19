@@ -140,16 +140,16 @@ class FToken(val kind: FTokenKind, val pos: Int, val endPos: Int) {
 
 class NamedToken(kind: FTokenKind, pos: Int, endPos: Int, override val name: String) extends FToken(kind, pos, endPos){
 
-	override def toString: String = s"NamedToken ${kind.toString}($pos, $endPos, value='$name')"
+	override def toString: String = s"NamedToken ${kind.toString}($pos, $endPos, '$name')"
 }
 
 class StringToken(kind: FTokenKind, pos: Int, endPos: Int, override val stringVal: String) extends FToken(kind, pos, endPos) {
 
-	override def toString: String = s"StringToken ${kind.toString}($pos, $endPos, value='$stringVal')"
+	override def toString: String = s"StringToken ${kind.toString}($pos, $endPos, '$stringVal')"
 }
 
 class NumericToken(kind: FTokenKind, pos: Int, endPos: Int, override val stringVal: String, override val radix: Int) extends StringToken(kind, pos, endPos, stringVal){
 
-	override def toString: String = s"NumericToken ${kind.name}($pos, $endPos, value=['$stringVal', radix=$radix])"
+	override def toString: String = s"NumericToken ${kind.name}($pos, $endPos, ['$stringVal', radix=$radix])"
 }
 

@@ -415,7 +415,7 @@ class FTokenizer private(val reader: UnicodeReader) {
 			}
 		}
 		name = reader.name()
-		tk = ID
+		tk = FToken.lookupKind(name)
 	}
 
 	private def scanIdent_OLD(): Unit = {

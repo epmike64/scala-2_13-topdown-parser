@@ -1,11 +1,38 @@
 
-object Person {
+class Person {
 
-	def &:(name: String, age: Int) = new Person(name, age)
+	def -(a: Int, b: Int): Unit = println("Meow")
 
-	def main(args: Array[String]): Unit = {
-		val p = new Person("John", 10)
-		val w = new Worker("Mike", 20, "Developer")
-		val k = new Worker2("Mike", 20, "Developer")
+	def *(a: Int, b: Int): Unit = println("Meow")
+
+	def /(a: Int, b: Int): Unit = println("Meow")
+
+	def ++(a: Int, b: Int): Unit = println("Meow")
+
+	def --(a: Int, b: Int): Unit = println("Meow")
+
+	def **(a: Int, b: Int): Unit = println("Meow")
+	def <(a: Int, b: Int): Unit = println("Meow")
+	def >(a: Int, b: Int): Unit = println("Meow")
+
+	def /:(a: Int, b: Int): Unit = println("Meow")
+	def :@(a: Int, b: Int): Unit = println("Meow")
+	//	def#(a: Int, b: Int): Unit
+	//	= println("Meow")
+
+	def !(a: Int, b: Int): Unit = println("Meow")
+	//	case '!' | '#' | '%' | '&' | '*' | '+' | '-' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~' =>
+	def ++(x: Int) = {
+		val _h_@   = x
 	}
+	//	def =(x: Int) = 5 + x
+}
+
+object Main extends App {
+	val p = new Person
+	val + = 6
+	val z = 7 + 8
+	val > = 7
+	val __ = 8
+	println(z)
 }

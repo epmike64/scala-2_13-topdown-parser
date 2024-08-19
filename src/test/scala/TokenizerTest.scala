@@ -4,10 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TokenizerTestSuite extends AnyFunSuite {
 	test("tokenize") {
-		println("-- Source Text --")
-		io.Source.fromFile("src/main/resources/parsingtest/Animal.java").getLines().foreach(println)
-		println("-- Tokenizing...")
-		val tokenizer = FTokenizer("src/main/resources/parsingtest/Animal.java")
+		val tokenizer = FTokenizer("src/main/resources/parsingtest/Person.scala")
 		var token: FToken = tokenizer.readToken()
 		var i = 1
 		while (token != null && token.kind != FTokenKind.EOF) {
