@@ -3,6 +3,7 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
+import com.fdk.compiler.tree.{FEmpty, FTree}
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -120,9 +121,13 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def _package(): Unit = {
-		accept(PACKAGE)
-		qualId()
+	def _package(): Boolean = {
+		if(isToken(PACKAGE)){
+			next()
+			qualId()
+			return true
+		}
+		false
 	}
 
 	def _import(): Boolean = {
@@ -1594,12 +1599,13 @@ class FParser(lexer: IFLexer) {
 		false
 	}
 
-	def topStatement(): Unit = {
-		if (isToken(IMPORT)) _import()
-		else {
-			modifiers()
-			tmplDef()
+	def topStatement(): Boolean= {
+		if (_import()) {
+			return true
 		}
+		modifiers()
+		tmplDef()
+		true
 	}
 
 	def topStatements(): Unit = {
@@ -1609,9 +1615,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def compilationUnit(): Unit = {
-		while (token.kind == PACKAGE) {
-			_package()
-		}
+		while (_package()) {}
 		topStatements()
 	}
 }

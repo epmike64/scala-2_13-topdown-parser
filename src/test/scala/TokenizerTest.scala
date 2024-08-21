@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TokenizerTestSuite extends AnyFunSuite {
 	test("tokenize") {
-		val tokenizer = FTokenizer("src/main/resources/parsingtest/Person.scala")
+		val tokenizer = FTokenizer("src/main/resources/parsingtest/Point.scala")
 		var token: FToken = tokenizer.readToken()
 		var i = 1
 		while (token != null && token.kind != FTokenKind.EOF) {
