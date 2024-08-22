@@ -3,7 +3,7 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree.{FEmpty, FTree}
+import com.fdk.compiler.tree.{FAccessQualifier, FClassDef, FNon, FObjectDef, FStableId, FTraitDef, FTree}
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -121,16 +121,16 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def _package(): Boolean = {
+	def _package(): FTree = {
 		if(isToken(PACKAGE)){
 			next()
 			qualId()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def _import(): Boolean = {
+	def _import(): FTree = {
 		if (isToken(IMPORT)) {
 			next()
 			stableId()
@@ -164,9 +164,9 @@ class FParser(lexer: IFLexer) {
 						accept(RCURL)
 					}
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
 
@@ -178,22 +178,22 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def refineStat(): Boolean = {
+	def refineStat(): FTree = {
 		if (dcl()) {
 
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def refinement(): Boolean = {
+	def refinement(): FTree = {
 		if (isToken(LCURL)) {
 			refineStat()
 			accept(RCURL)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
 	def compoundType(): Unit = {
@@ -204,64 +204,66 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def infixType(): Boolean = {
+	def infixType(): FTree = {
 		compoundType()
 		while (token.kind == ID) {
 			next()
 			compoundType()
 		}
-		true
+		FTree()
 	}
 
-	def simpleType(): Boolean = {
+	def simpleType(): FTree = {
+		var t = FNon
 		if (isToken(LPAREN)) {
 			next()
 			types()
 			accept(RPAREN)
 			simpleTypeRest()
-			return true
+			return FSimpleType()
+			
 		} else if (stableId()) {
 			if (isTokenPrefix(DOT, TYPE)) {
 				skip(2)
 			}
 			simpleTypeRest()
-			return true
+			return FTree()
 		}
-		false
+		t
 	}
 
-	def simpleTypeRest(): Boolean = {
+	def simpleTypeRest(): FTree = {
 		if (typeArgs()) {
 			simpleTypeRest()
 		} else if (isTokenPrefix(POUND, ID)) {
 			skip(2)
 			simpleTypeRest()
 		}
-		true
+		FTree()
 	}
 
-	def _type(): Boolean = {
+	def _type(): FTree = {
 		if (functionArgTypes()) {
 			if (isToken(FAT_ARROW)) {
 				next()
 				assrt(_type())
 			}
-			return true
+			return FTree()
 		} //else if (infixType()) { //	existentialClause? //}
-		false
+		FNon
 	}
 
-	def typeArgs(): Boolean = {
+	def typeArgs(): FTree = {
 		if (isToken(LBRACKET)) {
 			next()
 			types()
 			accept(RBRACKET)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def functionArgTypes(): Boolean = {
+	def functionArgTypes(): FTree = {
 		if (isToken(LPAREN)) {
 			next()
 			if (!isToken(RPAREN)) {
@@ -272,14 +274,14 @@ class FParser(lexer: IFLexer) {
 				}
 			}
 			accept(RPAREN)
-			return true
+			return FTree()
 		} else if (simpleType()) {
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def paramType(): Boolean = {
+	def paramType(): FTree = {
 		if (isToken(FAT_ARROW)) {
 			next()
 			assrt(_type())
@@ -287,10 +289,10 @@ class FParser(lexer: IFLexer) {
 			assrt(_type())
 			if (isToken(ID)) next()//STAR
 		}
-		true
+		FTree()
 	}
 
-	def classParam(): Boolean = {
+	def classParam(): FTree = {
 		modifiers()
 		if (isTokenOneOf(VAR, VAL) && isTokenLaOneOf(1, ID)) {
 			next()
@@ -301,12 +303,12 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def typeParamClause(): Boolean = {
+	def typeParamClause(): FTree = {
 		if (isToken(LBRACKET)) {
 			variantTypeParam()
 			while (token.kind == COMMA) {
@@ -314,9 +316,9 @@ class FParser(lexer: IFLexer) {
 				variantTypeParam()
 			}
 			accept(RBRACKET)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
 	def typeParam(): Unit = {
@@ -370,8 +372,10 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def stableId(): Boolean = {
+	def stableId(): FTree = {
+		var t = FNon
 		if (isToken(ID)) {
+			t = FStableId()
 			ident()
 			if (token.kind == DOT) {
 				if (isTokenLaOneOf(1, THIS, SUPER)) {
@@ -381,13 +385,12 @@ class FParser(lexer: IFLexer) {
 			}
 			stableIdRest()
 		} else if (isTokenOneOf(THIS, SUPER)) {
+			t = FStableId()
 			next()
 			stableId2()
 			stableIdRest()
-		} else {
-			return false
-		}
-		true
+		} 
+		t
 	}
 
 	def variantTypeParam(): Unit = {
@@ -397,37 +400,37 @@ class FParser(lexer: IFLexer) {
 		typeParam()
 	}
 
-	def pattern2(): Boolean = {
+	def pattern2(): FTree = {
 		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
 			ident()
 			next()
 			pattern3()
-			return true
+			return FTree()
 		}
 		pattern3()
 	}
 
-	def pattern1(): Boolean = {
+	def pattern1(): FTree = {
 		if (isTokenOneOf(UNDERSCORE, ID) && isTokenLaOneOf(1, COLON)) {
 			skip(2)
 			assrt(_type())
 		} else if (pattern2()) {
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def pattern(): Boolean = {
+	def pattern(): FTree = {
 		if (pattern1()) {
 			while (isToken(ID)) {//PIPE
 				next()
 				pattern1()
 			}
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
 	def patterns(): Unit = {
@@ -444,90 +447,90 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def simplePatternRest(): Boolean = {
+	def simplePatternRest(): FTree = {
 		if (isToken(LPAREN)) {
 			next()
 			if (token.kind != RPAREN) {
 				patterns()
 			}
 			accept(RPAREN)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def simplePattern(): Boolean = {
+	def simplePattern(): FTree = {
 		if (isToken(UNDERSCORE) || literal()) {
 			next()
-			return true
+			return FTree()
 		}
 		if (stableId()) {
 			simplePatternRest()
-			return true
+			return FTree()
 		}
 		simplePatternRest()
 	}
 
-	def guard(): Boolean = {
+	def guard(): FTree = {
 		if (isToken(IF)) {
 			next()
 			postfixExpr()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def generatorRest(): Boolean = {
+	def generatorRest(): FTree = {
 		if (guard()) {
 		} else if (pattern1()) {
 			accept(EQ)
 			expr()
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def generator(): Boolean = {
+	def generator(): FTree = {
 		if (pattern1()) {
 			accept(LEFT_ARROW)
 			expr()
 			while (generatorRest()) {}
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def enumerators(): Boolean = {
+	def enumerators(): FTree = {
 		if (generator()) {
 			while (generator()) {}
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
 
-	def simpleExpr(): Boolean = {
+	def simpleExpr(): FTree = {
 		if (isToken(NEW)) {
 			next()
-			if (templateBody() || classTemplate()) return true
+			if (templateBody() || classTemplate()) return FTree()
 		} else if (blockExpr()) {
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def caseClauses(): Boolean = {
+	def caseClauses(): FTree = {
 		if (caseClause()) {
 			while (caseClause()) {}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def blockExpr(): Boolean = {
+	def blockExpr(): FTree = {
 		if (isToken(LCURL)) {
 			next()
 			if (caseClauses()) {
@@ -535,20 +538,20 @@ class FParser(lexer: IFLexer) {
 				assrt(block())
 			}
 			accept(RCURL)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def simpleExpr1(): Boolean = {
+	def simpleExpr1(): FTree = {
 		if (literal() || stableId()){
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(isToken(UNDERSCORE)){
 			next()
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(isToken(LPAREN)){
 			next()
@@ -557,93 +560,93 @@ class FParser(lexer: IFLexer) {
 			}
 			accept(RPAREN)
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(simpleExpr()){
 			if(isToken(DOT)){
 				next()
 				ident()
 				simpleExpr1Rest()
-				return true
+				return FTree()
 			}
 			assrt(typeArgs())
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 	
-	def simpleExpr1Rest(): Boolean = {
+	def simpleExpr1Rest(): FTree = {
 		if(isTokenPrefix(UNDERSCORE, DOT)){
 			skip(2)
 			ident()
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(isTokenPrefix(UNDERSCORE, LBRACKET)){
 			next()
 			typeArgs()
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(isToken(DOT)) {
 			next()
 			ident()
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		}
 		if(isToken(LBRACKET)){
 			typeArgs()
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		} 
 		if(argumentExprs()){
 			simpleExpr1Rest()
-			return true
+			return FTree()
 		} 
-		false
+		FNon
 	}
 
-	def simpleExpr1Rest_OLD(): Boolean = {
+	def simpleExpr1Rest_OLD(): FTree = {
 		if (isToken(UNDERSCORE)) {
 			next()
 			simpleExpr1Rest2()
-			return true
+			return FTree()
 		} 
 		if(simpleExpr1Rest2()){
-			return true
+			return FTree()
 		}
 		argumentExprs()
 	}
 
-	def simpleExpr1Rest2(): Boolean = {
+	def simpleExpr1Rest2(): FTree = {
 		if (isToken(DOT)) {
 			next()
 			ident()
-			return true
+			return FTree()
 		}
 		if(typeArgs()){
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def prefixExpr(): Boolean = {
+	def prefixExpr(): FTree = {
 		if (isToken(ID)) {//SUB, PLUS, BANG, TILDE
 			next()
 		}
 		if (simpleExpr()) {
-			return true
+			return FTree()
 		} else if (simpleExpr1()) {
 			if (isToken(UNDERSCORE)) {
 				next()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def infixExpr(): Boolean = {
+	def infixExpr(): FTree = {
 		if (prefixExpr()) {
 			if (isToken(ID)) {
 				while ( {
@@ -652,20 +655,20 @@ class FParser(lexer: IFLexer) {
 					isToken(ID)
 				}) {}
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def prefixDef(): Boolean = {
+	def prefixDef(): FTree = {
 		if (isToken(ID)) {//SUB, PLUS, TILDE, BANG
 			next()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def postfixExpr(): Boolean = {
+	def postfixExpr(): FTree = {
 		if (infixExpr()) {
 			if (isToken(ID)) {
 				ident()
@@ -673,25 +676,25 @@ class FParser(lexer: IFLexer) {
 			while (prefixDef()) {
 				simpleExpr1()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
 
-	def caseClause(): Boolean = {
+	def caseClause(): FTree = {
 		if (isToken(CASE)) {
 			next()
 			pattern()
 			guard()
 			accept(FAT_ARROW)
 			assrt(block())
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def expr1(): Boolean = {
+	def expr1(): FTree = {
 		if (isToken(IF)) {
 			accept(LPAREN)
 			expr()
@@ -701,7 +704,7 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-			return true
+			return FTree()
 		}
 
 		if (isToken(WHILE)) {
@@ -709,7 +712,7 @@ class FParser(lexer: IFLexer) {
 			expr()
 			accept(RCURL)
 			expr()
-			return true
+			return FTree()
 		}
 
 		if (isToken(TRY)) {
@@ -722,7 +725,7 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-			return true
+			return FTree()
 		}
 
 		if (isToken(DO)) {
@@ -731,7 +734,7 @@ class FParser(lexer: IFLexer) {
 			accept(LPAREN)
 			expr()
 			accept(RPAREN)
-			return true
+			return FTree()
 		}
 
 		if (isToken(FOR)) {
@@ -749,24 +752,24 @@ class FParser(lexer: IFLexer) {
 				next()
 			}
 			expr()
-			return true
+			return FTree()
 		}
 
 		if (isToken(THROW)) {
 			assrt(expr())
-			return true
+			return FTree()
 		}
 
 		if (isToken(RETURN)) {
 			expr()
-			return true
+			return FTree()
 		}
 
 		if (simpleExpr()) {
 			ident()
 			accept(EQ)
 			expr()
-			return true
+			return FTree()
 		}
 
 		if (simpleExpr1()) {
@@ -783,15 +786,15 @@ class FParser(lexer: IFLexer) {
 				ident()
 				accept(EQ)
 				expr()
-				return true
+				return FTree()
 			}
 
 			if (!suffix && argumentExprs()) {
 				accept(EQ)
 				expr()
-				return true
+				return FTree()
 			}
-			return true
+			return FTree()
 		}
 
 		if (postfixExpr()) {
@@ -800,14 +803,14 @@ class FParser(lexer: IFLexer) {
 				accept(LCURL)
 				caseClauses()
 				accept(RCURL)
-				return true
+				return FTree()
 			}
 
 			if (ascription()) {
-				return true
+				return FTree()
 			}
 		}
-		false
+		FNon
 	}
 
 	//	/*
@@ -821,7 +824,7 @@ class FParser(lexer: IFLexer) {
 	//			ident()
 	//			accept(EQ)
 	//			expr()
-	//			return true
+	//			return FTree()
 	//		}
 	//
 	//	/*
@@ -851,36 +854,36 @@ class FParser(lexer: IFLexer) {
 	//					caseClause()
 	//				}
 	//				next()
-	//				return true
+	//				return FTree()
 	//			}
 	//
 	//			if(ascription()){
-	//				return true
+	//				return FTree()
 	//			}
 	//
 	//			if (argumentExprs()) {
 	//				accept(EQ)
 	//				expr()
-	//				return true
+	//				return FTree()
 	//			}
 	//
 	//			if(isToken(ID)){
 	//				ident()
 	//				accept(EQ)
 	//				expr()
-	//				return true
+	//				return FTree()
 	//			}
 	//
 	//			if(isToken(EQ)){
 	//				next()
 	//				expr()
-	//				return true
+	//				return FTree()
 	//			}
 	//
-	//			return true
+	//			return FTree()
 	//		}
 
-	def annotations(): Boolean = {
+	def annotations(): FTree = {
 		if (isToken(AT)) {
 			while ( {
 				next()
@@ -888,24 +891,24 @@ class FParser(lexer: IFLexer) {
 				argumentExprs()
 				isToken(AT)
 			}) {}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def ascription(): Boolean = {
+	def ascription(): FTree = {
 		if (isToken(COLON)) {
 			if (isTokenPrefix(UNDERSCORE, ID)) {// STAR
 				skip(2)
-				return true
+				return FTree()
 			} else if (annotations() || infixType()) {
-				return true
+				return FTree()
 			}
 		}
-		false
+		FNon
 	}
 
-	def args(): Boolean = {
+	def args(): FTree = {
 		var isExpr = false
 		if (exprs()) {
 			isExpr = true
@@ -919,12 +922,12 @@ class FParser(lexer: IFLexer) {
 			if (isTokenOneOf(COLON, UNDERSCORE, ID)) {//STAR
 				next()
 			}
-			return true
+			return FTree()
 		}
 		isExpr
 	}
 
-	def bindings(): Boolean = {
+	def bindings(): FTree = {
 		if (isToken(LPAREN)) {
 			while ( {
 				next()
@@ -935,21 +938,21 @@ class FParser(lexer: IFLexer) {
 				}
 				isToken(COMMA)
 			}) {}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def exprs(): Boolean = {
+	def exprs(): FTree = {
 		assrt(expr())
 		while (isToken(COMMA)) {
 			next()
 			assrt(expr())
 		}
-		true
+		FTree()
 	}
 
-	def expr(): Boolean = {
+	def expr(): FTree = {
 		if (bindings()) {
 			accept(FAT_ARROW)
 			return expr()
@@ -970,13 +973,13 @@ class FParser(lexer: IFLexer) {
 		expr1()
 	}
 
-	def resultExprRest(): Boolean = {
+	def resultExprRest(): FTree = {
 		accept(FAT_ARROW)
 		block()
-		true
+		FTree()
 	}
 
-	def resultExpr(): Boolean = {
+	def resultExpr(): FTree = {
 		if (bindings()) {
 			resultExprRest()
 		} else if (isTokenPrefix(IMPLICIT, ID) || isToken(ID) || isToken(UNDERSCORE)) {
@@ -987,24 +990,24 @@ class FParser(lexer: IFLexer) {
 			resultExprRest()
 		} else if (expr1()) {
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def argumentExprs(): Boolean = {
+	def argumentExprs(): FTree = {
 		if (blockExpr()) {
-			return true
+			return FTree()
 		}
 		if (isTokenOneOf(LPAREN, LCURL)) {
 			val t = if (token.kind == LPAREN) RPAREN else RCURL
 			next()
 			args()
 			accept(t)
-			return true
+			return FTree()
 		}
 
-		false
+		FNon
 	}
 
 	def constr(): Unit = {
@@ -1020,17 +1023,17 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def pattern3(): Boolean = {
+	def pattern3(): FTree = {
 		assrt(simplePattern())
 		while (isToken(ID)) {
 			ident()
 			assert(simplePattern())
 		}
-		true
+		FTree()
 	}
 
 
-	def patDef(): Boolean = {
+	def patDef(): FTree = {
 		if (pattern2()) {
 			while (isToken(COMMA)) {
 				next()
@@ -1043,12 +1046,12 @@ class FParser(lexer: IFLexer) {
 			accept(EQ)
 			expr()
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def ids(): Boolean = {
+	def ids(): FTree = {
 		if (isToken(ID)) {
 			ident()
 			while (isToken(COMMA)) {
@@ -1056,12 +1059,12 @@ class FParser(lexer: IFLexer) {
 				ident()
 			}
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def varDef(): Boolean = {
+	def varDef(): FTree = {
 		if (patDef()) {
 		} else if (ids()) {
 			accept(COLON)
@@ -1069,12 +1072,12 @@ class FParser(lexer: IFLexer) {
 			accept(EQ)
 			accept(UNDERSCORE)
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def patVarDef(): Boolean = {
+	def patVarDef(): FTree = {
 		if (isToken(VAL)) {
 			next()
 			return patDef()
@@ -1082,7 +1085,7 @@ class FParser(lexer: IFLexer) {
 			next()
 			return varDef()
 		}
-		false
+		FNon
 	}
 
 	def earlyDefs(): Unit = {
@@ -1093,56 +1096,56 @@ class FParser(lexer: IFLexer) {
 		accept(WITH)
 	}
 
-	def selfInvocation(): Boolean = {
+	def selfInvocation(): FTree = {
 		if (isToken(THIS)) {
 			next()
 			argumentExprs()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def constrBlock(): Boolean = {
+	def constrBlock(): FTree = {
 		if (isToken(LCURL)) {
 			selfInvocation()
 			while (blockStat()) {}
 			accept(RCURL)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def constrExpr(): Boolean = {
+	def constrExpr(): FTree = {
 		if (selfInvocation()) {
 		} else if (constrBlock()) {
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def defDcl(): Boolean = {
+	def defDcl(): FTree = {
 		if (isToken(VAL)) {
 			if (valDcl() || patVarDef()) {
-				return true
+				return FTree()
 			}
 		} else if (isToken(VAR)) {
 			if (varDcl() || patVarDef()) {
-				return true
+				return FTree()
 			}
 		} else if (isToken(DEF)) {
 			if (funDclDef()) {
-				return true
+				return FTree()
 			}
 		} else if (isToken(TYPE)) {
 			if (typeDclDef()) {
-				return true
+				return FTree()
 			}
 		}
-		false
+		FNon
 	}
 
-	def typeDclDef(): Boolean = {
+	def typeDclDef(): FTree = {
 		if (isToken(TYPE)) {
 			next()
 			ident()
@@ -1150,7 +1153,7 @@ class FParser(lexer: IFLexer) {
 			if (isToken(EQ)) {
 				next()
 				assrt(_type())
-				return true
+				return FTree()
 			}
 			if (isToken(LOWER_BOUND)) {
 				next()
@@ -1160,32 +1163,32 @@ class FParser(lexer: IFLexer) {
 				next()
 				assrt(_type())
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def varDcl(): Boolean = {
+	def varDcl(): FTree = {
 		if (isToken(VAR) && isTokenLaOneOf(1, ID)) {
 			ids()
 			accept(COLON)
 			assrt(_type())
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def valDcl(): Boolean = {
+	def valDcl(): FTree = {
 		if (isToken(VAL) && isTokenLaOneOf(1, ID)) {
 			ids()
 			accept(COLON)
 			assrt(_type())
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def funTypeParamClause(): Boolean = {
+	def funTypeParamClause(): FTree = {
 		if (isToken(LBRACKET)) {
 			next()
 			typeParam()
@@ -1194,12 +1197,12 @@ class FParser(lexer: IFLexer) {
 				typeParam()
 			}
 			accept(RBRACKET)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def param(): Boolean = {
+	def param(): FTree = {
 		if (isTokenOneOf(ID)) {
 			ident()
 			if (isToken(COLON)) {
@@ -1209,64 +1212,64 @@ class FParser(lexer: IFLexer) {
 				next()
 				expr()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def params(): Boolean = {
+	def params(): FTree = {
 		if (param()) {
 			while (isToken(COMMA)) {
 				next()
 				param()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def paramClausesRest(): Boolean = {
+	def paramClausesRest(): FTree = {
 		if (isToken(LPAREN) && isTokenLaOneOf(1, IMPLICIT)) {
 			skip(2)
 			params()
 			accept(RPAREN)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def paramClause(): Boolean = {
+	def paramClause(): FTree = {
 		if (isToken(LPAREN)) {
 			next()
 			params()
 			accept(RPAREN)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def paramClauses(): Boolean = {
+	def paramClauses(): FTree = {
 		if (paramClausesRest()) {
-			return true
+			return FTree()
 		}
 		else if (paramClause()) {
 			paramClausesRest()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def funSig(): Boolean = {
+	def funSig(): FTree = {
 		if (isToken(ID)) {
 			ident()
 			funTypeParamClause()
 			paramClauses()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def funDclDef(): Boolean = {
+	def funDclDef(): FTree = {
 		if (isToken(DEF)) {
 			next()
 			if (funSig()) {
@@ -1284,7 +1287,7 @@ class FParser(lexer: IFLexer) {
 					next()
 					expr()
 				}
-				return true
+				return FTree()
 			} else if (isToken(THIS)) {
 				next()
 				paramClause()
@@ -1294,13 +1297,13 @@ class FParser(lexer: IFLexer) {
 					constrExpr()
 				} else if (constrBlock()) {
 				}
-				return true
+				return FTree()
 			}
 		}
-		false
+		FNon
 	}
 
-	def dcl(): Boolean = {
+	def dcl(): FTree = {
 		if (isToken(VAL)) {
 			return valDcl()
 		} else if (isToken(VAR)) {
@@ -1310,98 +1313,98 @@ class FParser(lexer: IFLexer) {
 		} else if (isToken(TYPE)) {
 			return typeDclDef()
 		}
-		false
+		FNon
 	}
 
-	def _def(): Boolean = {
+	def _def(): FTree = {
 		if (patVarDef()) {
-			return true
+			return FTree()
 		}
 
 		if (funDclDef()) {
-			return true
+			return FTree()
 		}
 
 		if (typeDclDef()) {
-			return true
+			return FTree()
 		}
 
 		if (tmplDef()) {
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def block(): Boolean = {
+	def block(): FTree = {
 		assrt(blockStat())
 		while (blockStat()) {}
 		resultExpr()
-		true
+		FTree()
 	}
 
-	def modifiers(): Boolean = {
-		var isModifier: Boolean = false
+	def modifiers(): FTree = {
+		var isModifier: FTree = FNon
 		while (modifier()) {
 			isModifier = true
 		}
 		isModifier
 	}
 
-	def modifier(): Boolean = {
+	def modifier(): FTree = {
 		if (localModifier() || accessModifier()) {
-			return true
+			return FTree()
 		}
 		if (isToken(OVERRIDE)) {
 			next()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def localModifier(): Boolean = {
+	def localModifier(): FTree = {
 		if (isTokenOneOf(ABSTRACT, FINAL, SEALED, IMPLICIT, LAZY)) {
 			next()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def accessModifier(): Boolean = {
+	def accessModifier(): FTree = {
 		if (isTokenOneOf(PRIVATE, PROTECTED)) {
 			next()
 			accessQualifier()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def blockStat(): Boolean = {
+	def blockStat(): FTree = {
 		if (_import()) {
-			return true
+			return FTree()
 		}
 
 		if (localModifier()) {
 			tmplDef()
-			return true
+			return FTree()
 		}
 
 		if (isTokenOneOf(IMPLICIT, LAZY)) {
 			next()
 			_def()
-			return true
+			return FTree()
 		}
 
 		if (_def()) {
-			return true
+			return FTree()
 		}
 
 		if (expr1()) {
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def templateStat(): Boolean = {
+	def templateStat(): FTree = {
 		if (_import()) {
 		} else if (modifiers()) {
 			return defDcl()
@@ -1409,23 +1412,23 @@ class FParser(lexer: IFLexer) {
 		if (defDcl()) {
 		} else if (expr()) {
 		} else {
-			return false
+			return FNon
 		}
-		true
+		FTree()
 	}
 
-	def literal(): Boolean = {
+	def literal(): FTree = {
 		if (isToken(ID) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
 			skip(2)
-			return true
+			return FTree()
 		} else if (isTokenOneOf(INTLITERAL, FLOATLITERAL, STRINGLITERAL, CHARLITERAL, BOOLEANLITERAL, NULL)) {
 			next()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def selfType(): Boolean = {
+	def selfType(): FTree = {
 		if (isToken(ID)) {
 			if (isToken(COLON)) {
 				next()
@@ -1435,62 +1438,62 @@ class FParser(lexer: IFLexer) {
 			accept(COLON)
 			assrt(_type())
 		} else {
-			return false
+			return FNon
 		}
 		accept(FAT_ARROW)
-		true
+		FTree()
 	}
 
-	def classParamClause(): Boolean = {
+	def classParamClause(): FTree = {
 		if (isToken(LPAREN)) {
 			next()
 			classParams()
 			accept(RPAREN)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def classParams(): Boolean = {
+	def classParams(): FTree = {
 		if (classParam()) {
 			while (isToken(COMMA)) {
 				next()
 				classParam()
 			}
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def classParamClausesRest(): Boolean = {
+	def classParamClausesRest(): FTree = {
 		if (isTokenPrefix(LPAREN, IMPLICIT)) {
 			skip(2)
 			classParams()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def classParamClauses(): Boolean = {
+	def classParamClauses(): FTree = {
 		if (classParamClausesRest()) {
-			return true
+			return FTree()
 		}
 		if (classParamClause()) {
 			while (classParamClause()) {}
 			classParamClausesRest()
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def classTemplate(): Boolean = {
+	def classTemplate(): FTree = {
 		//earlyDefs?
 		classParents()
 		templateBody()
-		true
+		FTree()
 	}
 
-	def templateBody(): Boolean = {
+	def templateBody(): FTree = {
 		if (isToken(LCURL)) {
 			next()
 			selfType()
@@ -1498,39 +1501,34 @@ class FParser(lexer: IFLexer) {
 				templateStat() //+
 			}
 			accept(RCURL)
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def classTemplateOpt(): Boolean = {
+	def classTemplateOpt(): FTree = {
 		//Not completely correct according to the grammar
 		if (isToken(EXTENDS)) {
 			next()
 			//earlyDefs?
 			classParents()
 			templateBody()
-			return true
+			return FTree()
 		} else if (templateBody()) {
-			return true
+			return FTree()
 		}
-		false
+		FNon
 	}
 
-	def traitTemplateOpt(): Boolean = {
-		//Not completely correct according to the grammar
+	def traitTemplateOpt(): FTree = {
 		if (isToken(EXTENDS)) {
 			next()
 			classParents()
-			templateBody()
-			return true
-		} else if (templateBody()) {
-			return true
-		}
-		false
+		} 
+		templateBody()
 	}
 
-	def classDef(isCase: Boolean): Boolean = {
+	def classDef(isCase: Boolean): FTree = {
 		if (isToken(CLASS)) {
 			next()
 			ident()
@@ -1538,85 +1536,94 @@ class FParser(lexer: IFLexer) {
 			accessModifier()
 			classParamClauses()
 			classTemplateOpt()
-			return true
+			return FClassDef()
 		}
-		false
+		FNon
 	}
 
-	def objectDef(isCase: Boolean): Boolean = {
+	def objectDef(isCase: Boolean): FTree = {
 		if (isToken(OBJECT)) {
 			next()
 			ident()
 			classTemplateOpt()
-			return true
+			return FObjectDef()
 		}
-		false
+		FNon
 	}
 
-	def traitDef(): Boolean = {
+	def traitDef(): FTree = {
 		if (isToken(TRAIT)) {
 			next()
 			ident()
 			typeParamClause()
 			traitTemplateOpt()
-			return true
+			return FTraitDef()
 		}
-		false
+		FNon
 	}
 
-	def accessQualifier(): Boolean = {
+	def accessQualifier(): FTree = {
 		if (isToken(LBRACKET)) {
 			next()
 			acceptOneOf(ID, THIS)
 			accept(RBRACKET)
-			return true
+			return FAccessQualifier()
 		}
-		false
+		FNon
 	}
 
-	def tmplDef(): Boolean = {
+	def tmplDef(): FTree = {
 		var isCase = false
 		if (isToken(CASE)) {
 			if (!isTokenLaOneOf(1, CLASS, OBJECT)) {
-				return false
+				return FNon
 			}
 			isCase = true
 			next()
 		}
 
-		if (traitDef()) {
-			return true
+		var t = FNon
+		if ((t != traitDef())!= FNon) {
+			return t
 		}
 
-		if (objectDef(isCase)) {
-			return true
+		if ((t=objectDef(isCase))!= FNon) {
+			return t
 		}
 
-		if (classDef(isCase)) {
-			return true
+		if ((t=classDef(isCase))!= FNon) {
+			return t
 		}
 
-		false
+		FNon
 	}
 
-	def topStatement(): Boolean= {
-		if (_import()) {
-			return true
+	def topStatement(): FTree = {
+		val t = _import()
+		if (t != FNon) {
+			return t
 		}
 		modifiers()
 		tmplDef()
-		true
 	}
 
-	def topStatements(): Unit = {
+	def topStatements(): ArrayBuffer[FTree] = {
+		val defs = ArrayBuffer[FTree]()
 		while (token.kind != EOF) {
-			topStatement()
+			defs.append(topStatement())
 		}
+		defs
 	}
 
 	def compilationUnit(): Unit = {
-		while (_package()) {}
-		topStatements()
+		val defs = ArrayBuffer[FTree]()
+		while ({
+			val t = _package()
+			t != FNon
+		}) {
+			defs.append(t)
+		}
+		defs.appendAll(topStatements())
 	}
 }
 
