@@ -1,6 +1,6 @@
 package com.fdk.compiler.tree
 
-class FTree {
+trait FTree {
 }
 
 case object FNon extends FTree
@@ -21,14 +21,14 @@ class FClassQualifier extends FTree
 class FFunctionArgTypes extends FTree
 class FInfixType extends FTree
 class FExistentialClause extends FTree
-class FParamType extends FTree
+class FParamType(val t: FType) extends FTree
 class FExistentialDcl extends FTree
 class FTypeDcl extends FTree
 class FValDcl extends FTree
 class FCompoundType extends FTree
 class FAnnotType extends FTree
 class FRefinement extends FTree
-class FSimpleType extends FTree
+class FSimpleType(var ann: FTree = null) extends FTree
 class FTypes extends FTree
 class FTypeArgs extends FTree
 class FRefineStat extends FTree
@@ -63,10 +63,10 @@ class FPattern3 extends FTree
 class FSimplePattern extends FTree
 class FPatterns extends FTree
 class FPattern extends FTree
-class FTypeParamClause extends FTree
-class FVariantTypeParam extends FTree
+class FTypeParamClause(val vtps: List[FVariantTypeParam]) extends FTree
+class FVariantTypeParam(val plusMinus:String, val tp: FTypeParam) extends FTree
+class FTypeParam(val id: FIdent, var tpc:FTypeParamClause=null, var lowerB:FType=null, var upperB:FType=null, var ctxB: FType=null, var parType: FType=null) extends FTree {}
 class FFunTypeParamClause extends FTree
-class FTypeParam extends FTree
 class FParamClauses extends FTree
 class FParamClause extends FTree
 class FParams extends FTree

@@ -3,7 +3,8 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree.{FAccessQualifier, FClassDef, FClassParamClauses, FClassParams, FIdent, FLiteral, FNon, FObjectDef, FStableId, FTemplateBody, FTraitDef, FTree}
+import com.fdk.compiler.tree._
+import scala.collection.mutable.ArrayBuffer
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -106,78 +107,183 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def reportSyntaxError(pos: Int, key: String, kinds: FTokenKind*): Unit = {
-		//reporter.syntaxError(token.offset, msg)
+		throw new IllegalArgumentException(s"Syntax error at $pos: $key ${kinds.mkString(" or ")}")
 	}
 
 	def ident(): FTree = {
-		val t = FIdent(token.name)
+		val prev = token
 		accept(ID)
-		t
+		FIdent(prev.name)
+	}
+	
+	def underscore():FTree = {
+		accept(UNDERSCORE)
+		FIdent("_")
 	}
 
-	def qualId(): Unit = {
-		ident()
-		while (token.kind == DOT) {
-			next()
-			ident()
+	def qualId(): FTree = {
+		if(isToken(ID)){
+			val defs = ArrayBuffer[FTree]()
+			defs.append(ident())
+			while(isToken(DOT)){
+				next()
+				defs.append(ident())
+			}
+			return FQualId(defs.toList)
 		}
+		FNon
 	}
 
 	def _package(): FTree = {
 		if(isToken(PACKAGE)){
 			next()
-			qualId()
-			return FTree()
+			val qs = qualId()
+			return FPackage(qs)
 		}
 		FNon
 	}
 
 	def _import(): FTree = {
-		if (isToken(IMPORT)) {
+		if(isToken(IMPORT)){
 			next()
-			stableId()
-			if (isToken(DOT)) {
-				token.kind match
-					case ID | UNDERSCORE => {
-						next()
-					}
-					case LCURL => {
-						next()
-						if (isToken(ID)) {
-							ident()
-							if (isToken(FAT_ARROW)) {
-								next()
-								acceptOneOf(ID, UNDERSCORE)
-							}
-							while (isToken(COMMA)) {
-								next()
-								ident()
-								if (isToken(FAT_ARROW)) {
-									next()
-									acceptOneOf(ID, UNDERSCORE)
-								}
-							}
-						} else if (isToken(UNDERSCORE)) {
-							next()
-						} else {
-							reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
-						}
-
-						accept(RCURL)
-					}
+			val defs = ArrayBuffer[FTree]()
+			var ie = importExpr()
+			while(ie != FNon){
+				defs.append(ie)
+				if(isToken(COMMA)){
+					next()
+					ie = importExpr()
+				} else {
+					ie = FNon
+				}
 			}
-			return FTree()
+			if(defs.isEmpty){
+				reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
+			}
+			return FImport(defs.toList)
 		}
 		FNon
 	}
 
-
-	def annotType(): Unit = {
-		simpleType()
-		while (token.kind == AT) {
-			next()
-			simpleType()
+	def importExpr(): FTree = {
+		val defs = ArrayBuffer[FTree]()
+		val sid = stableId()
+		if(sid != FNon){
+			defs.append(sid)
+			if(isToken(DOT)){
+				next()
+				if(isToken(UNDERSCORE)){
+					defs.append(underscore())
+				} else if(isToken(ID)){
+					defs(ident())
+				} else {
+					val t = importSelectors()
+					if(t != FNon){
+						defs.append(t)
+					}
+				}
+			}
 		}
+		if(!defs.isEmpty){
+			return FImportExpr(defs.toList)
+		}
+		FNon
+	}
+
+	def importSelectors(): FTree = {
+		if(isToken(LCURL)){
+			next()
+			if(isToken(UNDERSCORE)){
+				next()
+				accept(RCURL)
+				return underscore()
+			}
+			val defs = ArrayBuffer[FTree]()
+			var is = importSelector()
+			while(is != FNon){
+				defs.append(is)
+				if(isToken(COMMA)){
+					next()
+					is = importSelector()
+				} else {
+					is = FNon
+				}
+			}
+			if(defs.isEmpty){
+				reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
+			}
+			accept(RCURL)
+			return FImportSelectors(defs.toList)
+		}
+		FNon
+	}
+	
+	def importSelector(): FTree = {
+		if(isToken(ID)){
+			val defs = ArrayBuffer[FTree]()
+			defs.append(ident())
+			if(isToken(FAT_ARROW)){
+				next()
+				if(isToken(UNDERSCORE)){
+					defs.append(FIdent(true))
+				} else if(isToken(ID)){
+					defs.append(ident())
+				} else {
+					reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
+				}
+			}
+			return FImportSelector(defs.toList)
+		}
+		FNon
+	}
+
+//	def _import(): FTree = {
+//		if (isToken(IMPORT)) {
+//			next()
+//			stableId()
+//			if (isToken(DOT)) {
+//				token.kind match
+//					case ID | UNDERSCORE => {
+//						next()
+//					}
+//					case LCURL => {
+//						next()
+//						if (isToken(ID)) {
+//							ident()
+//							if (isToken(FAT_ARROW)) {
+//								next()
+//								acceptOneOf(ID, UNDERSCORE)
+//							}
+//							while (isToken(COMMA)) {
+//								next()
+//								ident()
+//								if (isToken(FAT_ARROW)) {
+//									next()
+//									acceptOneOf(ID, UNDERSCORE)
+//								}
+//							}
+//						} else if (isToken(UNDERSCORE)) {
+//							next()
+//						} else {
+//							reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
+//						}
+//
+//						accept(RCURL)
+//					}
+//			}
+//			return FTree()
+//		}
+//		FNon
+//	}
+
+
+	def annotType(): FTree = {
+		val t = simpleType()
+		if(t.isInstanceOf[FSimpleType]){
+			val st = t.asInstanceOf[FSimpleType]
+			st.ann = annotations()
+		}
+		t
 	}
 
 	def refineStat(): FTree = {
@@ -216,7 +322,6 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def simpleType(): FTree = {
-		var t = FNon
 		if (isToken(LPAREN)) {
 			next()
 			types()
@@ -229,9 +334,9 @@ class FParser(lexer: IFLexer) {
 				skip(2)
 			}
 			simpleTypeRest()
-			return FTree()
+			return FSimpleType()
 		}
-		t
+		FNon
 	}
 
 	def simpleTypeRest(): FTree = {
@@ -245,27 +350,32 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def _type(): FTree = {
-		if (functionArgTypes()) {
+		var t = FNon
+		if ((t=functionArgTypes())!=FNon) {
 			if (isToken(FAT_ARROW)) {
 				next()
-				assrt(_type())
+				val t  = _type()
 			}
-			return FTree()
-		} //else if (infixType()) { //	existentialClause? //}
+			return FType()
+		}
 		FNon
 	}
 
 	def typeArgs(): FTree = {
 		if (isToken(LBRACKET)) {
 			next()
-			types()
+			val t = types()
 			accept(RBRACKET)
-			return FTree()
+			return FTypeArgs()
 		}
 		FNon
 	}
 
 	def functionArgTypes(): FTree = {
+		var t = FNon
+		if((t=infixType())!= FNon){
+			return FFunctionArgTypes()
+		}
 		if (isToken(LPAREN)) {
 			next()
 			if (!isToken(RPAREN)) {
@@ -276,22 +386,21 @@ class FParser(lexer: IFLexer) {
 				}
 			}
 			accept(RPAREN)
-			return FTree()
-		} else if (simpleType()) {
-			return FTree()
+			return FFunctionArgTypes()
 		}
 		FNon
 	}
 
 	def paramType(): FTree = {
+		var t = FNon
 		if (isToken(FAT_ARROW)) {
 			next()
-			assrt(_type())
+			t = _type()
 		} else {
-			assrt(_type())
-			if (isToken(ID)) next()//STAR
+			val t = _type()
+			if (isToken(ID)) ident()//STAR
 		}
-		FTree()
+		FParamType(t)
 	}
 
 	def classParam(): FTree = {
@@ -312,45 +421,52 @@ class FParser(lexer: IFLexer) {
 
 	def typeParamClause(): FTree = {
 		if (isToken(LBRACKET)) {
-			variantTypeParam()
+			next()
+			val defs  = ArrayBuffer[FTree]()
+			defs.append(variantTypeParam())
 			while (token.kind == COMMA) {
 				next()
-				variantTypeParam()
+				defs.append(variantTypeParam())
 			}
 			accept(RBRACKET)
-			return FTree()
+			return FTypeParamClause(defs.toList)
 		}
 		FNon
 	}
 
-	def typeParam(): Unit = {
+	def typeParam(): FTree = {
 		if (isTokenOneOf(ID, UNDERSCORE)) {
-			next()
+			val tp = FTypeParam(ident())
+			tp.tpc = typeParamClause()
+			if (isToken(LOWER_BOUND)) {
+				next()
+				tp.lowerB = _type()
+			}
+			if (isToken(UPPER_BOUND)) {
+				next()
+				tp.upperB = _type()
+			}
+			if(isToken(LESS_PERCENT)){
+				next()
+				tp.ctxB = _type()
+			}
+			if (isToken(COLON)) {
+				next() //Context bound
+				tp.parType = _type()
+			}
+			return tp
 		}
-		if (isToken(LBRACKET)) {
-			typeParamClause()
-		}
-
-		if (isToken(LOWER_BOUND)) {
-			next()
-			assrt(_type())
-		}
-		if (isToken(UPPER_BOUND)) {
-			next()
-			assrt(_type())
-		}
-		if (isToken(COLON)) {
-			next() //Context bound
-			assrt(_type())
-		}
+		FNon
 	}
 
-	def types(): Unit = {
-		assrt(_type())
+	def types(): FTree = {
+		val defs = ArrayBuffer[FTree]()
+		defs.append(_type())
 		while (token.kind == COMMA) {
 			next()
-			assrt(_type())
+			defs.append(_type())
 		}
+		FTypes(defs)
 	}
 
 	def classQualifier(): Unit = {
@@ -395,11 +511,16 @@ class FParser(lexer: IFLexer) {
 		t
 	}
 
-	def variantTypeParam(): Unit = {
+	def variantTypeParam(): FTree = {
+		var plusMinus:String = null
 		if (isToken(ID)) { //OneOf(PLUS, SUB))
-			next()
+			plusMinus = ident()
 		}
-		typeParam()
+		val tp = typeParam()
+		if (tp != FNon) {
+			return FVariantTypeParam(plusMinus, tp)
+		}
+		FNon
 	}
 
 	def pattern2(): FTree = {
@@ -1338,18 +1459,30 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def block(): FTree = {
-		assrt(blockStat())
-		while (blockStat()) {}
-		resultExpr()
-		FTree()
+		val defs = ArrayBuffer[FTree]()
+		var b = blockStat()
+		while (b != FNon) {
+			defs.append(b)
+			b = blockStat()
+		}
+		if(defs.size>0){
+			val re = resultExpr()
+			return FBlock(defs.toList,  re)
+		}
+		FNon
 	}
 
 	def modifiers(): FTree = {
-		var isModifier: FTree = FNon
-		while (modifier()) {
-			isModifier = true
+		val defs = ArrayBuffer[FTree]()
+		var m: FTree = modifier()
+		while (m != FNon) {
+			defs.append(m)
+			m = modifier()
 		}
-		isModifier
+		if(defs.size>0){
+			return FModifiers(defs.toList)
+		}
+		FNon
 	}
 
 	def modifier(): FTree = {
@@ -1404,16 +1537,20 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def templateStat(): FTree = {
-		if (_import()) {
-		} else if (modifiers()) {
+		var t:FTree = FNon
+		if ((t=_import())!=FNon) {
+			return t
+		}
+		if ((t=modifiers())!=FNon) {
 			return defDcl()
 		}
-		if (defDcl()) {
-		} else if (expr()) {
-		} else {
-			return FNon
+		if ((t=defDcl())!=FNon) {
+			return t
 		}
-		FTree()
+		if ((t=expr())!=FNon) {
+			return t
+		}
+		FNon
 	}
 
 	def literal(): FTree = {
@@ -1510,12 +1647,8 @@ class FParser(lexer: IFLexer) {
 			next()
 			//earlyDefs?
 			classParents()
-			templateBody()
-			return FTree()
-		} else if (templateBody()) {
-			return FTree()
 		}
-		FNon
+		templateBody()
 	}
 
 	def traitTemplateOpt(): FTree = {
@@ -1580,7 +1713,7 @@ class FParser(lexer: IFLexer) {
 			next()
 		}
 
-		var t = FNon
+		var t:FTree = FNon
 		if ((t != traitDef())!= FNon) {
 			return t
 		}
@@ -1615,11 +1748,10 @@ class FParser(lexer: IFLexer) {
 
 	def compilationUnit(): Unit = {
 		val defs = ArrayBuffer[FTree]()
-		while ({
-			val t = _package()
-			t != FNon
-		}) {
-			defs.append(t)
+		var p = _package()
+		while(p != FNon){
+			defs.append(p)
+			p = _package()
 		}
 		defs.appendAll(topStatements())
 	}
