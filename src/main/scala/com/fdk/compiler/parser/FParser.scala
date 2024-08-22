@@ -115,7 +115,7 @@ class FParser(lexer: IFLexer) {
 		accept(ID)
 		FIdent(prev.name)
 	}
-	
+
 	def underscore():FTree = {
 		accept(UNDERSCORE)
 		FIdent("_")
@@ -138,6 +138,9 @@ class FParser(lexer: IFLexer) {
 		if(isToken(PACKAGE)){
 			next()
 			val qs = qualId()
+			if(qs == FNon){
+				reportSyntaxError(token.pos, "expected", ID)
+			}
 			return FPackage(qs)
 		}
 		FNon
@@ -166,9 +169,9 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def importExpr(): FTree = {
-		val defs = ArrayBuffer[FTree]()
 		val sid = stableId()
 		if(sid != FNon){
+			val defs = ArrayBuffer[FTree]()
 			defs.append(sid)
 			if(isToken(DOT)){
 				next()
@@ -183,8 +186,6 @@ class FParser(lexer: IFLexer) {
 					}
 				}
 			}
-		}
-		if(!defs.isEmpty){
 			return FImportExpr(defs.toList)
 		}
 		FNon
@@ -217,7 +218,7 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-	
+
 	def importSelector(): FTree = {
 		if(isToken(ID)){
 			val defs = ArrayBuffer[FTree]()
@@ -236,47 +237,7 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-
-//	def _import(): FTree = {
-//		if (isToken(IMPORT)) {
-//			next()
-//			stableId()
-//			if (isToken(DOT)) {
-//				token.kind match
-//					case ID | UNDERSCORE => {
-//						next()
-//					}
-//					case LCURL => {
-//						next()
-//						if (isToken(ID)) {
-//							ident()
-//							if (isToken(FAT_ARROW)) {
-//								next()
-//								acceptOneOf(ID, UNDERSCORE)
-//							}
-//							while (isToken(COMMA)) {
-//								next()
-//								ident()
-//								if (isToken(FAT_ARROW)) {
-//									next()
-//									acceptOneOf(ID, UNDERSCORE)
-//								}
-//							}
-//						} else if (isToken(UNDERSCORE)) {
-//							next()
-//						} else {
-//							reportSyntaxError(token.pos, "expected", ID, UNDERSCORE)
-//						}
-//
-//						accept(RCURL)
-//					}
-//			}
-//			return FTree()
-//		}
-//		FNon
-//	}
-
-
+	
 	def annotType(): FTree = {
 		val t = simpleType()
 		if(t.isInstanceOf[FSimpleType]){
@@ -1746,14 +1707,15 @@ class FParser(lexer: IFLexer) {
 		defs
 	}
 
-	def compilationUnit(): Unit = {
-		val defs = ArrayBuffer[FTree]()
+	def compilationUnit(): FCompilationUnit = {
+		val pkgs = ArrayBuffer[FTree]()
 		var p = _package()
 		while(p != FNon){
-			defs.append(p)
+			pkgs.append(p)
 			p = _package()
 		}
-		defs.appendAll(topStatements())
+		val top = topStatements()
+		FCompilationUnit(pkgs.toList, top.toList)
 	}
 }
 

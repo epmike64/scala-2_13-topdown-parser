@@ -5,16 +5,16 @@ trait FTree {
 
 case object FNon extends FTree
 
-class FPackage extends FTree
-class FImport extends FTree
+class FPackage(val qs:FTree) extends FTree
+class FImport(val vs:List[FTree]) extends FTree
 class FIdent(val name:String) extends FTree
-class FComputeUnit extends FTree
+class FCompilationUnit(val packages:List[FTree], val topSmnts: List[FTree]) extends FTree
 class FClassDef extends FTree
 class FObjectDef extends FTree
 class FTraitDef extends FTree
 class FAccessQualifier extends FTree
 class FLiteral extends FTree
-class FQualId extends FTree
+class FQualId(val ids:List[FTree]) extends FTree
 class FType extends FTree
 class FStableId extends FTree
 class FClassQualifier extends FTree
