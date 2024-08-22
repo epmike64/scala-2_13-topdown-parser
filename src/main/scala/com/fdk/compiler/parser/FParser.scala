@@ -3,7 +3,7 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree.{FAccessQualifier, FClassDef, FNon, FObjectDef, FStableId, FTraitDef, FTree}
+import com.fdk.compiler.tree.{FAccessQualifier, FClassDef, FClassParamClauses, FClassParams, FIdent, FLiteral, FNon, FObjectDef, FStableId, FTemplateBody, FTraitDef, FTree}
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -109,8 +109,10 @@ class FParser(lexer: IFLexer) {
 		//reporter.syntaxError(token.offset, msg)
 	}
 
-	def ident(): Unit = {
+	def ident(): FTree = {
+		val t = FIdent(token.name)
 		accept(ID)
+		t
 	}
 
 	def qualId(): Unit = {
@@ -1034,7 +1036,8 @@ class FParser(lexer: IFLexer) {
 
 
 	def patDef(): FTree = {
-		if (pattern2()) {
+		var t = FNon
+		if ((t=pattern2())!=FNon) {
 			while (isToken(COMMA)) {
 				next()
 				pattern2()
@@ -1045,10 +1048,8 @@ class FParser(lexer: IFLexer) {
 			}
 			accept(EQ)
 			expr()
-		} else {
-			return FNon
-		}
-		FTree()
+		} 
+		FNon
 	}
 
 	def ids(): FTree = {
@@ -1317,20 +1318,21 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def _def(): FTree = {
-		if (patVarDef()) {
-			return FTree()
+		var t = FNon
+		if((t=patVarDef()) != FNon){
+			return t
+		}
+		
+		if ((t=funDclDef())!=FNon) {
+			return t
 		}
 
-		if (funDclDef()) {
-			return FTree()
+		if ((t=typeDclDef())!=FNon) {
+			return t
 		}
 
-		if (typeDclDef()) {
-			return FTree()
-		}
-
-		if (tmplDef()) {
-			return FTree()
+		if ((t=tmplDef())!=FNon) {
+			return t
 		}
 		FNon
 	}
@@ -1364,7 +1366,7 @@ class FParser(lexer: IFLexer) {
 	def localModifier(): FTree = {
 		if (isTokenOneOf(ABSTRACT, FINAL, SEALED, IMPLICIT, LAZY)) {
 			next()
-			return FTree()
+			return FLocalModifier()
 		}
 		FNon
 	}
@@ -1372,36 +1374,33 @@ class FParser(lexer: IFLexer) {
 	def accessModifier(): FTree = {
 		if (isTokenOneOf(PRIVATE, PROTECTED)) {
 			next()
-			accessQualifier()
-			return FTree()
+			val a = accessQualifier()
+			return FAccessModifier()
 		}
 		FNon
 	}
 
 	def blockStat(): FTree = {
-		if (_import()) {
-			return FTree()
+		var t = _import()
+		if (t != FNon) {
+			return t
 		}
 
 		if (localModifier()) {
-			tmplDef()
-			return FTree()
+			return tmplDef()
 		}
 
 		if (isTokenOneOf(IMPLICIT, LAZY)) {
 			next()
-			_def()
-			return FTree()
+			return _def()
 		}
 
-		if (_def()) {
-			return FTree()
+		t = _def()
+		if (t != FNon) {
+			return t
 		}
 
-		if (expr1()) {
-			return FTree()
-		}
-		FNon
+		expr1()
 	}
 
 	def templateStat(): FTree = {
@@ -1420,10 +1419,10 @@ class FParser(lexer: IFLexer) {
 	def literal(): FTree = {
 		if (isToken(ID) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
 			skip(2)
-			return FTree()
+			return FLiteral()
 		} else if (isTokenOneOf(INTLITERAL, FLOATLITERAL, STRINGLITERAL, CHARLITERAL, BOOLEANLITERAL, NULL)) {
 			next()
-			return FTree()
+			return FLiteral()
 		}
 		FNon
 	}
@@ -1449,7 +1448,7 @@ class FParser(lexer: IFLexer) {
 			next()
 			classParams()
 			accept(RPAREN)
-			return FTree()
+			return FClassParamClause()
 		}
 		FNon
 	}
@@ -1460,7 +1459,7 @@ class FParser(lexer: IFLexer) {
 				next()
 				classParam()
 			}
-			return FTree()
+			return FClassParams()
 		}
 		FNon
 	}
@@ -1476,12 +1475,12 @@ class FParser(lexer: IFLexer) {
 
 	def classParamClauses(): FTree = {
 		if (classParamClausesRest()) {
-			return FTree()
+			return FClassParamClauses()
 		}
 		if (classParamClause()) {
 			while (classParamClause()) {}
 			classParamClausesRest()
-			return FTree()
+			return FClassParamClauses()
 		}
 		FNon
 	}
@@ -1490,7 +1489,6 @@ class FParser(lexer: IFLexer) {
 		//earlyDefs?
 		classParents()
 		templateBody()
-		FTree()
 	}
 
 	def templateBody(): FTree = {
@@ -1501,7 +1499,7 @@ class FParser(lexer: IFLexer) {
 				templateStat() //+
 			}
 			accept(RCURL)
-			return FTree()
+			return FTemplateBody()
 		}
 		FNon
 	}
