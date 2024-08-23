@@ -1791,12 +1791,13 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def topStatement(): FTree = {
-		val t = _import()
-		if (t != FNon) {
-			return t
+		val i = _import()
+		if (i != FNon) {
+			return i
 		}
-		modifiers()
-		tmplDef()
+		val mfs = modifiers()
+		val td = tmplDef()
+		FStmt(mfs, td)
 	}
 
 	def topStatements(): ArrayBuffer[FTree] = {
