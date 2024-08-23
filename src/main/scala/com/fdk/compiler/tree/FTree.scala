@@ -7,6 +7,8 @@ case object FNon extends FTree
 
 class FPackage(val qs:FTree) extends FTree
 class FImport(val vs:List[FTree]) extends FTree
+class FImportExpr(val ids:List[FTree]) extends FTree
+class FImportSelector(val ids:List[FTree]) extends FTree
 class FIdent(val name:String) extends FTree
 class FCompilationUnit(val packages:List[FTree], val topSmnts: List[FTree]) extends FTree
 class FClassDef extends FTree
