@@ -112,13 +112,16 @@ class FParser(lexer: IFLexer) {
 
 	def ident(): FTree = {
 		val prev = token
+		if (isToken(UNDERSCORE)) {
+			return underscore()
+		}
 		accept(ID)
 		FIdent(prev.name)
 	}
 
 	def underscore(): FTree = {
 		accept(UNDERSCORE)
-		FIdent("_")
+		FIdent("_", true)
 	}
 
 	def qualId(): FTree = {
@@ -370,17 +373,19 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def classParam(): FTree = {
-		modifiers()
+		val mods = modifiers()
 		if (isTokenOneOf(VAR, VAL) && isTokenLaOneOf(1, ID)) {
+			val varVal = token.kind
 			next()
-			ident()
+			val id = ident()
 			accept(COLON)
-			paramType()
+			val pt = paramType()
+			var exp = FNon
 			if (token.kind == EQ) {
 				next()
-				expr()
+				exp = expr()
 			}
-			return FTree()
+			return FClassParam(mods, varVal, id, pt, exp)
 		}
 		FNon
 	}
@@ -478,7 +483,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def variantTypeParam(): FTree = {
-		var plusMinus: String = null
+		var plusMinus: FIdent = null
 		if (isToken(ID)) { //OneOf(PLUS, SUB))
 			plusMinus = ident()
 		}
@@ -1176,13 +1181,7 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def earlyDefs(): Unit = {
-		accept(LCURL)
-		modifiers()
-		patVarDef()
-		accept(RCURL)
-		accept(WITH)
-	}
+
 
 	def selfInvocation(): FTree = {
 		if (isToken(THIS)) {
@@ -1233,17 +1232,17 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def typeDcl():FTree = {
-		if(isToken(ID)){
+	def typeDcl(): FTree = {
+		if (isToken(ID)) {
 			val id = ident()
 			val tpc = typeParamClause()
 			var lowerB = FNon
-			if(isToken(LOWER_BOUND)){
+			if (isToken(LOWER_BOUND)) {
 				next()
 				lowerB = _type()
 			}
 			var upperB = FNon
-			if(isToken(UPPER_BOUND)){
+			if (isToken(UPPER_BOUND)) {
 				next()
 				upperB = _type()
 			}
@@ -1251,9 +1250,9 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-	
+
 	def typeDef(): FTree = {
-		if(isToken(ID)){
+		if (isToken(ID)) {
 			val id = ident()
 			val tpc = typeParamClause()
 			accept(EQ)
@@ -1262,7 +1261,7 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-	
+
 	def typeDclDef(): FTree = {
 		if (isToken(TYPE)) {
 			next()
@@ -1286,17 +1285,17 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	
-	def valDcl():FTree = {
+
+	def valDcl(): FTree = {
 		val is = ids()
-		if(is != FNon){
+		if (is != FNon) {
 			accept(EQ)
 			val t = _type()
 			return FValDcl(is, t)
 		}
 		FNon
 	}
-	
+
 	def varDcl(): FTree = {
 		val is = ids()
 		if (is != FNon) {
@@ -1306,7 +1305,7 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-	
+
 	def funTypeParamClause(): FTree = {
 		if (isToken(LBRACKET)) {
 			next()
@@ -1427,18 +1426,18 @@ class FParser(lexer: IFLexer) {
 		if (isToken(VAL)) {
 			next()
 			return valDcl()
-		} 
-		
+		}
+
 		if (isToken(VAR)) {
 			next()
 			return varDcl()
-		} 
-		
+		}
+
 		if (isToken(DEF)) {
 			next()
 			return funDcl()
-		} 
-		
+		}
+
 		if (isToken(TYPE)) {
 			next()
 			return typeDcl()
@@ -1446,11 +1445,11 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def funDcl():FTree = {
+	def funDcl(): FTree = {
 		val f = funSig()
-		if(f != FNon){
+		if (f != FNon) {
 			var t = FNon
-			if(isToken(EQ)){
+			if (isToken(EQ)) {
 				accept()
 				t = _type()
 			}
@@ -1458,20 +1457,20 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-	
+
 	def funDef(): FTree = {
-		if(isToken(THIS)){
+		if (isToken(THIS)) {
 			next()
 			val pc = paramClause()
 			val pcs = paramClauses()
-			if(isToken(EQ)){
+			if (isToken(EQ)) {
 				val ce = constrExpr()
 				return FFunDef(pc, pcs, ce)
 			}
 			val cb = constrBlock()
 			return FFunDef(pc, pcs, cb)
 		}
-		
+
 		val fs = funSig()
 		if (fs) {
 			if (isToken(LCURL)) {
@@ -1479,18 +1478,18 @@ class FParser(lexer: IFLexer) {
 				accept(RCURL)
 				return FFunDef(fs, b)
 			}
-				
+
 			var ty = FNon
 			if (isToken(COLON)) {
 				next()
 				ty = _type()
 			}
-			
+
 			accept(EQ)
 			val ex = expr()
 			return FFunDef(fs, ty, ex)
-		} 
-		
+		}
+
 		FNon
 	}
 
@@ -1534,44 +1533,54 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def modifiers(): FTree = {
-		val defs = ArrayBuffer[FTree]()
-		var m: FTree = modifier()
-		while (m != FNon) {
-			defs.append(m)
+		val ms = 0
+		var m = modifier()
+		while (m != 0) {
+			ms |= m
 			m = modifier()
 		}
-		if (defs.size > 0) {
-			return FModifiers(defs.toList)
+		if (ms > 0) {
+			return FModifiers(ms)
 		}
 		FNon
 	}
 
-	def modifier(): FTree = {
-		if (localModifier() || accessModifier()) {
-			return FTree()
+	def modifier(): Int = {
+		var m = localModifier()
+		if(m == 0){
+			m = accessModifier()
 		}
-		if (isToken(OVERRIDE)) {
+		if(m == 0 && isToken(OVERRIDE)){
 			next()
-			return FTree()
+			m = BFlags.Modifiers.OVERRIDE
 		}
-		FNon
+		m
 	}
 
-	def localModifier(): FTree = {
-		if (isTokenOneOf(ABSTRACT, FINAL, SEALED, IMPLICIT, LAZY)) {
-			next()
-			return FLocalModifier()
+	def localModifier(): Int = {
+		val m = token.kind match {
+			case ABSTRACT => BFlags.Modifiers.ABSTRACT
+			case FINAL => BFlags.Modifiers.FINAL
+			case SEALED => BFlags.Modifiers.SEALED
+			case IMPLICIT => BFlags.Modifiers.IMPLICIT
+			case LAZY => BFlags.Modifiers.LAZY
+			case _ => 0
 		}
-		FNon
+		if(m > 0)	next()
+		m
 	}
 
-	def accessModifier(): FTree = {
-		if (isTokenOneOf(PRIVATE, PROTECTED)) {
-			next()
-			val a = accessQualifier()
-			return FAccessModifier()
+	def accessModifier(): Int = {
+		val m = token.kind match {
+			case PRIVATE => BFlags.Modifiers.PRIVATE 
+			case PROTECTED => BFlags.Modifiers.PROTECTED
+			case _ => 0
 		}
-		FNon
+		if(m > 0)	{
+			next()
+			m |= accessQualifier()
+		}
+		m
 	}
 
 	def blockStat(): FTree = {
@@ -1652,12 +1661,15 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def classParams(): FTree = {
-		if (classParam()) {
+		val t = classParam()
+		if (t != FNon) {
+			val defs = ArrayBuffer[FTree]()
+			defs.append(t)
 			while (isToken(COMMA)) {
 				next()
-				classParam()
+				defs.append(classParam())
 			}
-			return FClassParams()
+			return FClassParams(defs.toList)
 		}
 		FNon
 	}
@@ -1702,6 +1714,26 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
+	def earlyDefs(): Unit = {
+		accept(LCURL)
+		modifiers()
+		patVarDef()
+		accept(RCURL)
+		accept(WITH)
+	}
+
+	def earlyDefs(): FTree = {
+		if (isToken(LCURL)) {
+			next()
+			while (isTokenOneOf(VAL, VAR, DEF, TYPE)) {
+				_def()
+			}
+			accept(RCURL)
+			return FTree()
+		}
+		FNon
+	}
+	
 	def classTemplateOpt(): FTree = {
 		//Not completely correct according to the grammar
 		if (isToken(EXTENDS)) {
@@ -1723,11 +1755,11 @@ class FParser(lexer: IFLexer) {
 	def classDef(isCase: Boolean): FTree = {
 		if (isToken(CLASS)) {
 			next()
-			ident()
-			typeParamClause()
-			accessModifier()
-			classParamClauses()
-			classTemplateOpt()
+			val id = ident()
+			val tpc = typeParamClause()
+			val am = accessModifier()
+			val tpcs = classParamClauses()
+			val ct = classTemplateOpt()
 			return FClassDef()
 		}
 		FNon
@@ -1754,14 +1786,19 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def accessQualifier(): FTree = {
+	def accessQualifier(): Int = {
 		if (isToken(LBRACKET)) {
 			next()
-			acceptOneOf(ID, THIS)
+			val aq = token.kind match {
+				case ID => BFlags.Modifiers.ACCSSQUAL_ID
+				case THIS => BFlags.Modifiers.ACCSSQUAL_THIS
+				case _ => 0
+			}
+			if(aq > 0) next()
 			accept(RBRACKET)
-			return FAccessQualifier()
+			return aq
 		}
-		FNon
+		0
 	}
 
 	def tmplDef(): FTree = {
@@ -1797,7 +1834,7 @@ class FParser(lexer: IFLexer) {
 		}
 		val mfs = modifiers()
 		val td = tmplDef()
-		FStmt(mfs, td)
+		FTopStmt(mfs, td)
 	}
 
 	def topStatements(): ArrayBuffer[FTree] = {

@@ -1,5 +1,7 @@
 package com.fdk.compiler.tree
 
+import com.fdk.compiler.parser.FToken.FTokenKind
+
 trait FTree {
 }
 
@@ -9,7 +11,7 @@ class FPackage(val qs:FTree) extends FTree
 class FImport(val vs:List[FTree]) extends FTree
 class FImportExpr(val ids:List[FTree]) extends FTree
 class FImportSelector(val ids:List[FTree]) extends FTree
-class FIdent(val name:String) extends FTree
+class FIdent(val name:String, isUnderScore: Boolean = false) extends FTree
 class FCompilationUnit(val packages:List[FTree], val topSmnts: List[FTree]) extends FTree
 class FClassDef extends FTree
 class FObjectDef extends FTree
@@ -66,7 +68,7 @@ class FSimplePattern extends FTree
 class FPatterns extends FTree
 class FPattern extends FTree
 class FTypeParamClause(val vtps: List[FVariantTypeParam]) extends FTree
-class FVariantTypeParam(val plusMinus:String, val tp: FTypeParam) extends FTree
+class FVariantTypeParam(val plusMinus:FIdent, val tp: FTypeParam) extends FTree
 class FTypeParam(val id: FIdent, var tpc:FTypeParamClause=null, var lowerB:FType=null, var upperB:FType=null, var ctxB: FType=null, var parType: FType=null) extends FTree {}
 class FFunTypeParamClause extends FTree
 class FParamClauses extends FTree
@@ -74,9 +76,10 @@ class FParamClause extends FTree
 class FParams extends FTree
 class FParam extends FTree
 class FClassParamClause extends FTree
-class FClassParam extends FTree
+class FClassParam(val mods:FModifiers, val varVal:FTokenKind, val id:FIdent, val pt:FParamType, val exp:FExpr) extends FTree
 class FClassParams extends FTree
 class FClassParamClauses extends FTree
 class FTemplateBody extends FTree
 class FTemplateStat extends FTree
 class FSelfType extends FTree
+class FModifiers(val bFlags: Int) extends FTree
