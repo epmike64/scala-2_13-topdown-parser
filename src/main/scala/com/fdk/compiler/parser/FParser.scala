@@ -3,9 +3,10 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree._
+import com.fdk.compiler.tree.{FRefinement, *}
+
 import scala.collection.mutable.ArrayBuffer
-import com.fdk.compiler.tree.BFlags._
+import com.fdk.compiler.tree.BFlags.*
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -15,7 +16,7 @@ object FParser {
 
 
 class FParser(lexer: IFLexer) {
-	private[this] var token: FToken = lexer.nextToken()
+	private var token: FToken = lexer.nextToken()
 
 	def next(): Unit = {
 		token = lexer.nextToken()
@@ -133,7 +134,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def _package(): FTree = {
+	def _package(): FPackage = {
 		if (isToken(PACKAGE)) {
 			next()
 			val qs = qualId()
@@ -235,7 +236,7 @@ class FParser(lexer: IFLexer) {
 		t
 	}
 
-	def refineStat(): FTree = {
+	def refineStat(): FRefineStat = {
 		var t: FTree = dcl()
 		if (t != null) {
 			return FRefineStat()
@@ -249,11 +250,15 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def refinement(): FTree = {
+	def refinement(): FRefinement = {
 		if (isToken(LCURL)) {
-			refineStat()
+			val defs = ArrayBuffer[FRefineStat]()
+			while(!isToken(RCURL)){
+				defs.append(refineStat())
+			}
+			assert(defs.size > 0)
 			accept(RCURL)
-			return FTree()
+			return FRefinement(defs.toList)
 		}
 		null
 	}
@@ -275,37 +280,45 @@ class FParser(lexer: IFLexer) {
 		FTree()
 	}
 
-	def simpleType(): FTree = {
+	def simpleType(): FSimpleType = {
 		if (isToken(LPAREN)) {
 			next()
-			types()
+			val tys = types()
 			accept(RPAREN)
-			simpleTypeRest()
-			return FSimpleType()
+			return simpleType12(tys)
+		}
 
-		} else if (stableId()) {
+		val sid = stableId()
+		if(sid neq null){
+			var dotTy = false
 			if (isTokenPrefix(DOT, TYPE)) {
 				skip(2)
+				dotTy = true
 			}
-			simpleTypeRest()
-			return FSimpleType()
+			return simpleType12(FSimpleType(sid, dotTy))
 		}
 		null
 	}
 
-	def simpleTypeRest(): FTree = {
-		if (typeArgs()) {
-			simpleTypeRest()
-		} else if (isTokenPrefix(POUND, ID)) {
-			skip(2)
-			simpleTypeRest()
+	def simpleType12(ty: FSimpleType): FSimpleType = {
+		var loop = true
+		while(loop){
+			val tas = typeArgs()
+			if (tas != null) {
+				ty.tyArgs = tas
+			} else if (isToken(POUND)) {
+				next()
+				ty.poundId = ident()
+			} else {
+				loop = false
+			}
 		}
-		FTree()
+		ty
 	}
 
-	def _type(): FTree = {
+	def _type(): FSimpleType = {
 		var t = null
-		if ((t = functionArgTypes()) != null) {
+		if ((t = functionArgTypes()) neq null) {
 			if (isToken(FAT_ARROW)) {
 				next()
 				val t = _type()
@@ -315,12 +328,12 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def typeArgs(): FTree = {
+	def typeArgs(): FSimpleType = {
 		if (isToken(LBRACKET)) {
 			next()
-			val t = types()
+			val tys = types()
 			accept(RBRACKET)
-			return FTypeArgs()
+			return tys
 		}
 		null
 	}
@@ -415,14 +428,15 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def types(): FTree = {
-		val defs = ArrayBuffer[FTree]()
-		defs.append(_type())
+	def types(): FSimpleType = {
+		val list = _type()
+		var nod = list
 		while (token.kind == COMMA) {
 			next()
-			defs.append(_type())
+			nod.next = _type()
+			nod = nod.next
 		}
-		FTypes(defs)
+		list
 	}
 
 	def classQualifier(): FIdent = {
@@ -1146,15 +1160,15 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def ids(): FTree = {
+	def ids(): List[FIdent] = {
 		if (isToken(ID)) {
-			val defs = ArrayBuffer[FTree]()
+			val defs = ArrayBuffer[FIdent]()
 			defs.append(ident())
 			while (isToken(COMMA)) {
 				next()
 				defs.append(ident())
 			}
-			return FIds(defs.toList)
+			return defs.toList
 		}
 		null
 	}
@@ -1286,7 +1300,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 
-	def valDcl(): FTree = {
+	def valDcl(): FValDcl = {
 		val is = ids()
 		if (is != null) {
 			accept(EQ)
@@ -1422,7 +1436,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def dcl(): FTree = {
+	def dcl(): FDcl = {
 		if (isToken(VAL)) {
 			next()
 			return valDcl()
@@ -1532,7 +1546,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def modifiers(): FTree = {
+	def modifiers(): FModifiers = {
 		val ms = 0
 		var m = modifier()
 		while (m != 0) {
@@ -1785,7 +1799,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def traitDef(): FTree = {
+	def traitDef(): FTraitDef = {
 		if (isToken(TRAIT)) {
 			next()
 			ident()
@@ -1811,59 +1825,62 @@ class FParser(lexer: IFLexer) {
 		0
 	}
 
-	def tmplDef(): FTree = {
+	def tmplDef(): FTopStmt = {
+
+		val mdfs = modifiers()
 		var isCase = false
 		if (isToken(CASE)) {
 			if (!isTokenLaOneOf(1, CLASS, OBJECT)) {
-				return null
+				throw new IllegalArgumentException("Expected CLASS or OBJECT")
 			}
 			isCase = true
 			next()
 		}
 
-		var t: FTree = null
-		if ((t != traitDef()) != null) {
+		var t: FTopStmt = null
+		if ((t = traitDef()) neq null) {
 			return t
 		}
 
-		if ((t = objectDef(isCase)) != null) {
+		if ((t = objectDef(isCase)) neq null) {
 			return t
 		}
 
-		if ((t = classDef(isCase)) != null) {
+		if ((t = classDef(isCase)) neq null) {
 			return t
 		}
 
 		null
 	}
 
-	def topStatement(): FTree = {
+	def topStatement(): FTopStmt = {
 		val i = _import()
 		if (i != null) {
 			return i
 		}
-		val mfs = modifiers()
-		val td = tmplDef()
-		FTopStmt(mfs, td)
+		tmplDef()
+		//val mdfs = modifiers()
+//		val td = tmplDef()
+//		FTopStmt(mdfs, td)
 	}
 
-	def topStatements(): ArrayBuffer[FTree] = {
-		val defs = ArrayBuffer[FTree]()
+	def topStatements(): List[FTopStmt] = {
+		val defs = ArrayBuffer[FTopStmt]()
 		while (token.kind != EOF) {
 			defs.append(topStatement())
 		}
-		defs
+		defs.toList
 	}
 
 	def compilationUnit(): FCompilationUnit = {
-		val pkgs = ArrayBuffer[FTree]()
+		val pkgs = ArrayBuffer[FPackage]()
 		var p = _package()
 		while (p != null) {
 			pkgs.append(p)
 			p = _package()
 		}
-		val top = topStatements()
-		FCompilationUnit(pkgs.toList, top.toList)
+		val stmts = topStatements()
+		FCompilationUnit(pkgs.toList, stmts)
 	}
 }
 
