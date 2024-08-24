@@ -113,10 +113,10 @@ class FParser(lexer: IFLexer) {
 
 	def ident(): FIdent = {
 		token.kind match
-			case UNDERSCORE => next(); FIdent(BFlags.Ident.UNDERSCORE)
-			case THIS => next(); FIdent(BFlags.Ident.THIS)
-			case SUPER => next(); FIdent(BFlags.Ident.SUPER)
-			case ID => val name = token.name; next(); FIdent(BFlags.Ident.IDENTIFIER, name)
+			case UNDERSCORE => next(); FIdent(BFlags.Idents.UNDERSCORE)
+			case THIS => next(); FIdent(BFlags.Idents.THIS)
+			case SUPER => next(); FIdent(BFlags.Idents.SUPER)
+			case ID => val name = token.name; next(); FIdent(BFlags.Idents.IDENTIFIER, name)
 			case _ => throw new IllegalArgumentException(s"Expected [ID,UNDERSCORE,THIS,SUPER] but got unexpected token ${token.kind}")
 	}
 
@@ -192,7 +192,7 @@ class FParser(lexer: IFLexer) {
 		if (isToken(LCURL)) {
 			next()
 			if (isToken(UNDERSCORE)) {
-				val id = Ident()
+				val id = ident()
 				accept(RCURL)
 				return FImportSelector(id) :: Nil
 			}
@@ -428,7 +428,7 @@ class FParser(lexer: IFLexer) {
 	def classQualifier(): FIdent = {
 		if(isToken(LBRACKET)){
 			next()
-			val id = ident(); id.bFlag = BFlags.Ident.CLASS_QLFR
+			val id = ident(); id.bFlag = BFlags.Idents.CLASS_QLFR
 			accept(RBRACKET)
 			return id
 		}
