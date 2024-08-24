@@ -2,6 +2,8 @@ package com.fdk.compiler.tree
 
 import com.fdk.compiler.parser.FToken.FTokenKind
 
+import scala.collection.mutable.ArrayBuffer
+
 trait FTree {
 }
 
@@ -11,7 +13,7 @@ class FPackage(val qs:FTree) extends FTree
 class FImport(val vs:List[FTree]) extends FTree
 class FImportExpr(val ids:List[FTree]) extends FTree
 class FImportSelector(val ids:List[FTree]) extends FTree
-class FIdent(val name:String, isUnderScore: Boolean = false) extends FTree
+class FIdent(var bFlag: Int, val name:String = "") extends FTree
 class FCompilationUnit(val packages:List[FTree], val topSmnts: List[FTree]) extends FTree
 class FClassDef extends FTree
 class FObjectDef extends FTree
@@ -20,7 +22,12 @@ class FAccessQualifier extends FTree
 class FLiteral extends FTree
 class FQualId(val ids:List[FTree]) extends FTree
 class FType extends FTree
-class FStableId extends FTree
+class FStableId extends FTree {
+	private[this] val ids = ArrayBuffer[FTree]()
+	def addId(id: FTree) = ids += id
+	def getIds = ids.toList
+	def last = ids.last
+}
 class FClassQualifier extends FTree
 class FFunctionArgTypes extends FTree
 class FInfixType extends FTree

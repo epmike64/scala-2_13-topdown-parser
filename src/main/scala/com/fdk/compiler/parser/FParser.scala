@@ -5,6 +5,7 @@ import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
 import com.fdk.compiler.tree._
 import scala.collection.mutable.ArrayBuffer
+import com.fdk.compiler.tree.BFlags._
 
 object FParser {
 	def assrt(cond: Boolean, msg: String = ""): Unit = if (!cond) throw new AssertionError(msg)
@@ -109,22 +110,17 @@ class FParser(lexer: IFLexer) {
 	def reportSyntaxError(pos: Int, key: String, kinds: FTokenKind*): Unit = {
 		throw new IllegalArgumentException(s"Syntax error at $pos: $key ${kinds.mkString(" or ")}")
 	}
-
-	def ident(): FTree = {
-		val prev = token
-		if (isToken(UNDERSCORE)) {
-			return underscore()
-		}
-		accept(ID)
-		FIdent(prev.name)
+	
+	def ident(): FIdent = {
+		token.kind match
+			case UNDERSCORE => next(); FIdent(BFlags.Ident.UNDERSCORE)
+			case THIS => next(); FIdent(BFlags.Ident.THIS)
+			case SUPER => next(); FIdent(BFlags.Ident.SUPER)
+			case ID => val name = token.name; next(); FIdent(BFlags.Ident.IDENTIFIER, name)
+			case _ => throw new IllegalArgumentException(s"Expected [ID,UNDERSCORE,THIS,SUPER] but got unexpected token ${token.kind}")
 	}
 
-	def underscore(): FTree = {
-		accept(UNDERSCORE)
-		FIdent("_", true)
-	}
-
-	def qualId(): FTree = {
+	def qualId(): FQualId = {
 		if (isToken(ID)) {
 			val defs = ArrayBuffer[FTree]()
 			defs.append(ident())
@@ -440,48 +436,64 @@ class FParser(lexer: IFLexer) {
 		FTypes(defs)
 	}
 
-	def classQualifier(): Unit = {
-		accept(LBRACKET)
-		ident()
-		accept(RBRACKET)
+	def classQualifier(): FIdent = {
+		if(isToken(LBRACKET)){
+			next()
+			val id = ident(); id.bFlag = BFlags.Ident.CLASS_QLFR
+			accept(RBRACKET)
+			return id
+		}
+		FNon
 	}
 
-	def stableId2(): Unit = {
-		if (token.kind == LBRACKET) {
-			classQualifier()
+	def stableId32(sid: FStableId): Unit = {
+		val cq = classQualifier()
+		if(cq != FNon){
+			sid.addId(cq)
 		}
 		accept(DOT)
-		accept(ID)
+		sid.addId(ident())
 	}
 
-	def stableIdRest(): Unit = {
+	def stableId2(sid: FStableId): FStableId = {
 		while (isTokenPrefix(DOT, ID)) {
 			next()
-			accept(ID)
+			sid.addId(ident())
 		}
+		sid
 	}
 
-	def stableId(): FTree = {
-		var t = FNon
+	def stableId(): FStableId = {
 		if (isToken(ID)) {
-			t = FStableId()
-			ident()
+			val sid = FStableId()
+			sid.addId(ident())
 			if (token.kind == DOT) {
 				if (isTokenLaOneOf(1, THIS, SUPER)) {
-					skip(2)
-					stableId2()
+					next()
+					return stableId31(sid)
 				}
+				return stableId2(sid)
 			}
-			stableIdRest()
-		} else if (isTokenOneOf(THIS, SUPER)) {
-			t = FStableId()
-			next()
-			stableId2()
-			stableIdRest()
+			return sid
+		} 
+		
+		if (isTokenOneOf(THIS, SUPER)) {
+			val sid = FStableId()
+			return stableId31(sid)
 		}
-		t
+		FNon
 	}
 
+	def stableId31(sid: FStableId): FStableId = {
+		val tk = token.kind
+		assert(tk == THIS || tk == SUPER)
+		sid.addId(ident())
+		if (tk == SUPER) {
+			stableId32(sid)
+		} 
+		sid
+	}
+	
 	def variantTypeParam(): FTree = {
 		var plusMinus: FIdent = null
 		if (isToken(ID)) { //OneOf(PLUS, SUB))
@@ -496,12 +508,13 @@ class FParser(lexer: IFLexer) {
 
 	def pattern2(): FTree = {
 		if (isToken(ID) && isTokenLaOneOf(1, AT)) {
-			ident()
+			val id = ident()
 			next()
-			pattern3()
-			return FTree()
-		}
-		pattern3()
+			val p3 = pattern3()
+			return FPattern2(id, p3)
+		} 
+		val p3 = pattern3()
+		FPattern2(FNon, p3)
 	}
 
 	def pattern1(): FTree = {
@@ -1118,10 +1131,10 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def pattern3(): FTree = {
-		assrt(simplePattern())
+		val sp = simplePattern()
 		while (isToken(ID)) {
 			ident()
-			assert(simplePattern())
+			simplePattern()
 		}
 		FTree()
 	}
