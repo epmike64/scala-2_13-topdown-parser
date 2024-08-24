@@ -1180,9 +1180,7 @@ class FParser(lexer: IFLexer) {
 		}
 		FNon
 	}
-
-
-
+	
 	def selfInvocation(): FTree = {
 		if (isToken(THIS)) {
 			next()
@@ -1695,11 +1693,7 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def classTemplate(): FTree = {
-		//earlyDefs?
-		classParents()
-		templateBody()
-	}
+
 
 	def templateBody(): FTree = {
 		if (isToken(LCURL)) {
@@ -1714,34 +1708,48 @@ class FParser(lexer: IFLexer) {
 		FNon
 	}
 
-	def earlyDefs(): Unit = {
-		accept(LCURL)
-		modifiers()
-		patVarDef()
-		accept(RCURL)
-		accept(WITH)
-	}
-
-	def earlyDefs(): FTree = {
-		if (isToken(LCURL)) {
-			next()
-			while (isTokenOneOf(VAL, VAR, DEF, TYPE)) {
-				_def()
-			}
-			accept(RCURL)
-			return FTree()
+	def earlyDef(): FTree = {
+		val ms = modifiers()
+		val pvd = patVarDef()
+		if (pvd != FNon) {
+			return FEarlyDef(ms, pvd)
 		}
 		FNon
 	}
 	
+	def earlyDefs(): FTree = {
+		if(isToken(LCURL)){
+			next()
+			val defs = ArrayBuffer[FTree]()
+			while(!isToken(RCURL)){
+				defs.append(earlyDef())
+			}
+			accept(RCURL)
+			accept(WITH)
+			FEarlyDefs(defs.toList)
+		}
+		FNon
+	}
+
+	def classTemplate(): FTree = {
+		val ed = earlyDefs()
+		classParents()
+		templateBody()
+	}
+
+
 	def classTemplateOpt(): FTree = {
-		//Not completely correct according to the grammar
+		var ct = FNon
 		if (isToken(EXTENDS)) {
 			next()
-			//earlyDefs?
-			classParents()
-		}
-		templateBody()
+			ct = classTemplate()
+			if(ct == FNon){
+				ct = templateBody()
+			}
+		} else {
+			ct = templateBody()
+		}  
+		ct
 	}
 
 	def traitTemplateOpt(): FTree = {
