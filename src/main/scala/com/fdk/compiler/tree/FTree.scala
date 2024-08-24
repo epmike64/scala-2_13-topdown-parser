@@ -10,9 +10,13 @@ trait FTree {
 case object FNon extends FTree
 
 class FPackage(val qs:FTree) extends FTree
-class FImport(val vs:List[FTree]) extends FTree
-class FImportExpr(val ids:List[FTree]) extends FTree
-class FImportSelector(val ids:List[FTree]) extends FTree
+class FImport(val vs:List[FImportExpr]) extends FTree
+class FImportExpr(val sid:FStableId) extends FTree {
+	var selectors: List[FImportSelector] = List()
+}
+class FImportSelector(val id:FIdent) extends FTree {
+	var alias: FIdent = null
+}
 class FIdent(var bFlag: Int, val name:String = "") extends FTree
 class FCompilationUnit(val packages:List[FTree], val topSmnts: List[FTree]) extends FTree
 class FClassDef extends FTree
@@ -25,8 +29,6 @@ class FType extends FTree
 class FStableId extends FTree {
 	private[this] val ids = ArrayBuffer[FTree]()
 	def addId(id: FTree) = ids += id
-	def getIds = ids.toList
-	def last = ids.last
 }
 class FClassQualifier extends FTree
 class FFunctionArgTypes extends FTree
