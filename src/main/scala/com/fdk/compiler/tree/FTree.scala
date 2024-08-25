@@ -24,7 +24,15 @@ class FClassDef extends FTopStmt
 class FObjectDef extends FTopStmt
 class FTraitDef extends FTopStmt
 class FAccessQualifier extends FTree
-class FLiteral extends FTree
+
+trait FLiteral extends FTree
+class FIntLit(val value: Long) extends FLiteral
+class FFloatLit(val value: Double) extends FLiteral
+class FCharLit(val value: Char) extends FLiteral
+class FStringLit(val value: String) extends FLiteral
+class FSymbolLit(val value: String) extends FLiteral
+class FBooleanLit(val value: Boolean) extends FLiteral
+
 class FQualId(val ids:List[FTree]) extends FTree
 
 class FStableId extends FTree {
@@ -70,7 +78,7 @@ class FBlockExpr extends FTree
 class FArgs extends FTree
 class FBlock extends FTree
 class FBlockStat extends FTree
-class FCaseClause(val pattern, val guard, val block) extends FTree
+class FCaseClause()//val pattern, val guard, val block) extends FTree
 class FCaseClauses extends FTree
 class FResultExpr extends FTree
 class FDef extends FTree
@@ -83,16 +91,16 @@ class FPattern3 extends FTree
 class FSimplePattern extends FTree
 class FPatterns extends FTree
 class FPattern extends FTree
-class FTypeParamClause(val vtps: List[FVariantTypeParam]) extends FTree
-class FVariantTypeParam(val plusMinus:FIdent, val tp: FTypeParam) extends FTree
-class FTypeParam(val id: FIdent, var tpc:FTypeParamClause=null, var lowerB:FSimpleType=null, var upperB:FSimpleType=null, var ctxB: FSimpleType=null, var parType: FType=null) extends FTree {}
+//class FTypeParamClause(val vtps: List[FVariantTypeParam]) extends FTree
+//class FVariantTypeParam(val plusMinus:FIdent, val tp: FTypeParam) extends FTree
+//class FTypeParam(val id: FIdent, var tpc:FTypeParamClause=null, var lowerB:FSimpleType=null, var upperB:FSimpleType=null, var ctxB: FSimpleType=null, var parType: FType=null) extends FTree {}
 class FFunTypeParamClause extends FTree
 class FParamClauses extends FTree
 class FParamClause extends FTree
 class FParams extends FTree
 class FParam extends FTree
 class FClassParamClause extends FTree
-class FClassParam(val mods:FModifiers, val varVal:FTokenKind, val id:FIdent, val pt:FParamType, val exp:FExpr) extends FTree
+//class FClassParam(val mods:FModifiers, val varVal:FTokenKind, val id:FIdent, val pt:FParamType, val exp:FExpr) extends FTree
 class FClassParams extends FTree
 class FClassParamClauses extends FTree
 class FTemplateBody extends FTree

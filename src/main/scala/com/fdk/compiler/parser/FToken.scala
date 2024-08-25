@@ -14,14 +14,11 @@ object FToken {
 		case ERROR extends FTokenKind(null, FTokenTag.DEFAULT)
 
 		case ID extends FTokenKind(null, FTokenTag.NAMED)
+		case INTLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case FLOATLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
 		case BOOLEANLITERAL extends FTokenKind(null, FTokenTag.NAMED)
 		case STRINGLITERAL extends FTokenKind(null, FTokenTag.STRING)
-
-		case LONGLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case FLOATLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case INTLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case DOUBLELITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
 
 		case ABSTRACT extends FTokenKind("abstract", FTokenTag.DEFAULT)
 		case CASE extends FTokenKind("case", FTokenTag.DEFAULT)
@@ -90,25 +87,25 @@ object FToken {
 		case LOWER_BOUND extends FTokenKind(">:", FTokenTag.DEFAULT)
 	}
 
-	enum OpChar(val c: Char) {
-		case BANG  extends OpChar('!')
-		case POUND extends OpChar ('#')
-		case PERCENT extends OpChar('%')
-		case AMP extends OpChar('&')
-		case STAR extends OpChar('*')
-		case PLUS extends OpChar('+')
-		case SUB extends OpChar('-')
-		case FSLASH extends OpChar('/')
-		case COLON extends OpChar(':')
-		case LT extends OpChar('<')
-		case EQ extends OpChar('=')
-		case GT extends OpChar('>')
-		case QMARK extends OpChar('?')
-		case AT extends OpChar('@')
-		case BSLASH extends OpChar('\\')
-		case CARET extends OpChar('^')
-		case PIPE extends OpChar('|')
-		case TILDE extends OpChar('~')
+	enum FOpChar(val opCh: Char) {
+		case BANG  extends FOpChar('!')
+		case POUND extends FOpChar ('#')
+		case PERCENT extends FOpChar('%')
+		case AMP extends FOpChar('&')
+		case STAR extends FOpChar('*')
+		case PLUS extends FOpChar('+')
+		case MINUS extends FOpChar('-')
+		case FSLASH extends FOpChar('/')
+		case COLON extends FOpChar(':')
+		case LT extends FOpChar('<')
+		case EQ extends FOpChar('=')
+		case GT extends FOpChar('>')
+		case QMARK extends FOpChar('?')
+		case AT extends FOpChar('@')
+		case BSLASH extends FOpChar('\\')
+		case CARET extends FOpChar('^')
+		case PIPE extends FOpChar('|')
+		case TILDE extends FOpChar('~')
 	}
 
 	private lazy val tokens = {
@@ -151,6 +148,20 @@ class StringToken(kind: FTokenKind, pos: Int, endPos: Int, override val stringVa
 
 class NumericToken(kind: FTokenKind, pos: Int, endPos: Int, override val stringVal: String, override val radix: Int) extends StringToken(kind, pos, endPos, stringVal){
 
+	lazy val value = {
+		if(kind == FTokenKind.INTLITERAL) {
+			java.lang.Long.parseLong(stringVal, radix)
+		} else if(kind == FTokenKind.FLOATLITERAL) {
+			java.lang.Float.parseFloat(stringVal)
+		} else if(kind == FTokenKind.CHARLITERAL) {
+			stringVal.charAt(0)
+		} else {
+			throw new UnsupportedOperationException
+		}
+	}
+
 	override def toString: String = s"NumericToken ${kind.name}($pos, $endPos, ['$stringVal', radix=$radix])"
+
+
 }
 

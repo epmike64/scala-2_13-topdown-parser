@@ -1,9 +1,10 @@
 package com.fdk.compiler.parser
 
 import com.fdk.compiler.parser.FParser.assrt
-import com.fdk.compiler.parser.FToken.FTokenKind
+import com.fdk.compiler.parser.FToken.{FTokenKind, FOpChar}
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree.{FCaseClause, FRefinement, *}
+import com.fdk.compiler.parser.FToken.FOpChar.*
+import com.fdk.compiler.tree.*
 
 import scala.collection.mutable.ArrayBuffer
 import com.fdk.compiler.tree.BFlags.*
@@ -95,10 +96,18 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
-//	def isOpToken(): Boolean = {
-//		token.kind == ID && token.name.forall(_.isOperator)
-//	}
-	
+	def isOpCharID(opChar: FOpChar): Boolean = {
+		token.kind == ID && opChar.opCh.toString.equals(token.name) 
+	}
+
+	def isOpCharIDOneOf(opChars: FOpChar*): Boolean = {
+		if(token.kind != ID) return false
+		for(o <- opChars){
+			if(o.opCh.toString.equals(token.name)) return true
+		}
+		false
+	}
+
 	def isToken(kind: FTokenKind): Boolean = {
 		token.kind == kind
 	}
@@ -500,7 +509,7 @@ class FParser(lexer: IFLexer) {
 
 	def variantTypeParam(): FTree = {
 		var plusMinus: FIdent = null
-		if (isToken(ID)) { //OneOf(PLUS, SUB))
+		if (isOpIDOneOf(ID)) { //OneOf(PLUS, SUB))
 			plusMinus = ident()
 		}
 		val tp = typeParam()
@@ -521,15 +530,14 @@ class FParser(lexer: IFLexer) {
 		FPattern2(null, p3)
 	}
 
-	def pattern1(): FTree = {
+	def pattern1(): Pattern1 = {
 		if (isTokenOneOf(UNDERSCORE, ID) && isTokenLaOneOf(1, COLON)) {
-			skip(2)
-			assrt(_type())
-		} else if (pattern2()) {
-		} else {
-			return null
-		}
-		FTree()
+			next()
+			val id = ident() 
+			val st = _type()
+			return FPattern1(id, st)
+		} 
+		pattern2()
 	}
 
 	def pattern(): FPattern = {
@@ -537,12 +545,12 @@ class FParser(lexer: IFLexer) {
 		if (p1 != null) {
 			val defs = ArrayBuffer[FPattern1]()
 			defs.append(p1)
-			while (isToken(ID)) { //PIPE
+			while (isOpCharID(PIPE)) { //PIPE
 				next()
 				defs.append(pattern1())
 			}
 			return FPattern(defs.toList)
-		} 
+		}
 		null
 	}
 
@@ -925,76 +933,6 @@ class FParser(lexer: IFLexer) {
 		}
 		null
 	}
-
-	//	/*
-	//		SimpleExpr
-	//	 */
-	//		if (isTokenOneOf(NEW, LCURL)) {
-	//			simpleExpr()
-	//		}
-	//
-	//		if(isTokenPrefix(ID, EQ)){
-	//			ident()
-	//			accept(EQ)
-	//			expr()
-	//			return FTree()
-	//		}
-	//
-	//	/*
-	//			SimpleExpr1
-	//	 */
-	//		if (isTokenOneOf(UNDERSCORE, LPAREN)) {
-	//			simpleExpr1()
-	//		}
-	//
-	//		/*
-	//
-	//		 */
-	//		if(isTokenOneOf(SUB, PLUS, BANG, TILDE)){
-	//			postfixExpr()
-	//		}
-	//
-	//		throw new IllegalArgumentException(s"Unexpected Token ${token.kind}")
-
-
-	//		if(postfixExpr()){
-	//
-	//			if (isToken(MATCH)) {
-	//				next()
-	//				accept(LCURL)
-	//				while (token.kind != RCURL) {
-	//					next()
-	//					caseClause()
-	//				}
-	//				next()
-	//				return FTree()
-	//			}
-	//
-	//			if(ascription()){
-	//				return FTree()
-	//			}
-	//
-	//			if (argumentExprs()) {
-	//				accept(EQ)
-	//				expr()
-	//				return FTree()
-	//			}
-	//
-	//			if(isToken(ID)){
-	//				ident()
-	//				accept(EQ)
-	//				expr()
-	//				return FTree()
-	//			}
-	//
-	//			if(isToken(EQ)){
-	//				next()
-	//				expr()
-	//				return FTree()
-	//			}
-	//
-	//			return FTree()
-	//		}
 
 	def annotations(): FTree = {
 		if (isToken(AT)) {
@@ -1619,30 +1557,71 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def templateStat(): FTree = {
-		var t: FTree = null
-		if ((t = _import()) != null) {
+		var t: FTree = _import()
+		if (t != null) {
 			return t
 		}
-		if ((t = modifiers()) != null) {
+		t = modifiers()
+		if (t != null) {
 			return defDcl()
 		}
-		if ((t = defDcl()) != null) {
+
+		t = defDcl()
+		if (t != null) {
 			return t
 		}
-		if ((t = expr()) != null) {
+
+		t = expr()
+		if (t != null) {
 			return t
 		}
 		null
 	}
 
-	def literal(): FTree = {
-		if (isToken(ID) && isTokenLaOneOf(1, INTLITERAL, FLOATLITERAL)) {
-			skip(2)
-			return FLiteral()
-		} else if (isTokenOneOf(INTLITERAL, FLOATLITERAL, STRINGLITERAL, CHARLITERAL, BOOLEANLITERAL, NULL)) {
-			next()
-			return FLiteral()
+	def literal(): FLiteral = {
+		if (isOpCharID(MINUS)) {
+			if(isTokenLaOneOf(1, INTLITERAL)){
+				skip(2)
+				val v = - (NumericToken(token)).value
+				return FIntLit(v)
+			} 
+			if(isTokenLaOneOf(1, FLOATLITERAL)){
+				skip(2)
+				val v = - (NumericToken(token)).value
+				return FFloatLit(v)
+			}
+			return null
 		}
+		
+		if(isToken(INTLITERAL)){
+			val v = (NumericToken(token)).value
+			return FIntLit(v)
+		}
+		
+		if(isToken(FLOATLITERAL)){
+			val v = (NumericToken(token)).value
+			return FFloatLit(v)
+		}
+		
+		if(isToken(CHARLITERAL)){
+			val v = (NumericToken(token)).value
+			return FCharLit(v)
+		}
+		
+		if (isToken(STRINGLITERAL)) {
+			val v = (StringToken(token)).stringVal
+			return FLiteral(token.kind, v)
+		}
+		
+		if(isToken(BOOLEANLITERAL)){
+			val v = token.name.toBoolean
+			return FLiteral(token.kind, v)
+		}
+		
+		if(isToken(NULL)){
+			return FLiteral(token.kind, null)
+		}
+		//Symbol not implemented
 		null
 	}
 
