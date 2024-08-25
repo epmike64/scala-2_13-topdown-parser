@@ -42,15 +42,15 @@ class FValDcl(val ids: List[FIdent], val ty: FSimpleType) extends FDcl
 class FCompoundType extends FTree
 class FAnnotType extends FTree
 
+
+
 class FSimpleType(val sid: FStableId, val dotTy: Boolean) extends FTree {
 	var next: FSimpleType = null
 	var child: FSimpleType = null
-	var tyArgs: FSimpleType = null
-	var poundId: FIdent = null
+	val tyArgs = ArrayBuffer[FSimpleType]()
+	val poundId = ArrayBuffer[FIdent]()
+	val ann = ArrayBuffer[FAnnotation]()
 }
-
-
-
 
 class FDcl extends FTree
 class FTypeDef extends FTree
@@ -70,7 +70,7 @@ class FBlockExpr extends FTree
 class FArgs extends FTree
 class FBlock extends FTree
 class FBlockStat extends FTree
-class FCaseClause extends FTree
+class FCaseClause(val pattern, val guard, val block) extends FTree
 class FCaseClauses extends FTree
 class FResultExpr extends FTree
 class FDef extends FTree

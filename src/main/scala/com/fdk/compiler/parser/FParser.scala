@@ -3,7 +3,7 @@ package com.fdk.compiler.parser
 import com.fdk.compiler.parser.FParser.assrt
 import com.fdk.compiler.parser.FToken.FTokenKind
 import com.fdk.compiler.parser.FToken.FTokenKind.*
-import com.fdk.compiler.tree.{FRefinement, *}
+import com.fdk.compiler.tree.{FCaseClause, FRefinement, *}
 
 import scala.collection.mutable.ArrayBuffer
 import com.fdk.compiler.tree.BFlags.*
@@ -95,6 +95,10 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
+//	def isOpToken(): Boolean = {
+//		token.kind == ID && token.name.forall(_.isOperator)
+//	}
+	
 	def isToken(kind: FTokenKind): Boolean = {
 		token.kind == kind
 	}
@@ -227,12 +231,9 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def annotType(): FTree = {
+	def annotType(): FSimpleType = {
 		val t = simpleType()
-		if (t.isInstanceOf[FSimpleType]) {
-			val st = t.asInstanceOf[FSimpleType]
-			st.ann = annotations()
-		}
+		annotations()
 		t
 	}
 
@@ -263,7 +264,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def compoundType(): Unit = {
+	def compoundType(): FSimpleType = {
 		annotType()
 		while (token.kind == WITH) {
 			next()
@@ -271,7 +272,7 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def infixType(): FTree = {
+	def infixType(): FSimpleType = {
 		compoundType()
 		while (token.kind == ID) {
 			next()
@@ -300,20 +301,20 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def simpleType12(ty: FSimpleType): FSimpleType = {
+	def simpleType12(st: FSimpleType): FSimpleType = {
 		var loop = true
 		while(loop){
 			val tas = typeArgs()
 			if (tas != null) {
-				ty.tyArgs = tas
+				st.tyArgs.append(tas)
 			} else if (isToken(POUND)) {
 				next()
-				ty.poundId = ident()
+				st.poundId.append(ident())
 			} else {
 				loop = false
 			}
 		}
-		ty
+		st
 	}
 
 	def _type(): FSimpleType = {
@@ -338,7 +339,7 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def functionArgTypes(): FTree = {
+	def functionArgTypes(): FSimpleType = {
 		var t = null
 		if ((t = infixType()) != null) {
 			return FFunctionArgTypes()
@@ -531,16 +532,18 @@ class FParser(lexer: IFLexer) {
 		FTree()
 	}
 
-	def pattern(): FTree = {
-		if (pattern1()) {
+	def pattern(): FPattern = {
+		val p1 = pattern1()
+		if (p1 != null) {
+			val defs = ArrayBuffer[FPattern1]()
+			defs.append(p1)
 			while (isToken(ID)) { //PIPE
 				next()
-				pattern1()
+				defs.append(pattern1())
 			}
-		} else {
-			return null
-		}
-		FTree()
+			return FPattern(defs.toList)
+		} 
+		null
 	}
 
 	def patterns(): Unit = {
@@ -792,14 +795,14 @@ class FParser(lexer: IFLexer) {
 	}
 
 
-	def caseClause(): FTree = {
+	def caseClause(): FCaseClause = {
 		if (isToken(CASE)) {
 			next()
-			pattern()
-			guard()
+			val p = pattern()
+			val g = guard()
 			accept(FAT_ARROW)
-			assrt(block())
-			return FTree()
+			val b = block()
+			return FCaseClause(p, g, b)
 		}
 		null
 	}
@@ -997,8 +1000,8 @@ class FParser(lexer: IFLexer) {
 		if (isToken(AT)) {
 			while ( {
 				next()
-				simpleType()
-				argumentExprs()
+				val st = simpleType()
+				val ae = argumentExprs()
 				isToken(AT)
 			}) {}
 			return FTree()
@@ -1106,18 +1109,13 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def argumentExprs(): FTree = {
-		if (blockExpr()) {
-			return FTree()
-		}
-		if (isTokenOneOf(LPAREN, LCURL)) {
-			val t = if (token.kind == LPAREN) RPAREN else RCURL
+		if(isToken(LPAREN)){
 			next()
 			args()
-			accept(t)
+			accept(RPAREN)
 			return FTree()
 		}
-
-		null
+		blockExpr()
 	}
 
 	def constr(): Unit = {
@@ -1776,7 +1774,7 @@ class FParser(lexer: IFLexer) {
 		templateBody()
 	}
 
-	def classDef(isCase: Boolean): FTree = {
+	def classDef(isCase: Boolean): FClassDef = {
 		if (isToken(CLASS)) {
 			next()
 			val id = ident()
@@ -1784,12 +1782,12 @@ class FParser(lexer: IFLexer) {
 			val am = accessModifier()
 			val tpcs = classParamClauses()
 			val ct = classTemplateOpt()
-			return FClassDef()
+			return FClassDef(id, tpc, am, tpcs, ct)
 		}
 		null
 	}
 
-	def objectDef(isCase: Boolean): FTree = {
+	def objectDef(isCase: Boolean): FObjectDef = {
 		if (isToken(OBJECT)) {
 			next()
 			ident()

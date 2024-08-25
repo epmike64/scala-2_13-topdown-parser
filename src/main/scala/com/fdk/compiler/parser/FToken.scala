@@ -10,6 +10,19 @@ object FToken {
 	}
 
 	enum FTokenKind(val name: String, val tag: FTokenTag) {
+		case EOF extends FTokenKind(null, FTokenTag.DEFAULT)
+		case ERROR extends FTokenKind(null, FTokenTag.DEFAULT)
+
+		case ID extends FTokenKind(null, FTokenTag.NAMED)
+		case BOOLEANLITERAL extends FTokenKind(null, FTokenTag.NAMED)
+		case STRINGLITERAL extends FTokenKind(null, FTokenTag.STRING)
+
+		case LONGLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case FLOATLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case INTLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case DOUBLELITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
+
 		case ABSTRACT extends FTokenKind("abstract", FTokenTag.DEFAULT)
 		case CASE extends FTokenKind("case", FTokenTag.DEFAULT)
 		case CATCH extends FTokenKind("catch", FTokenTag.DEFAULT)
@@ -50,22 +63,8 @@ object FToken {
 		case WHILE extends FTokenKind("while", FTokenTag.DEFAULT)
 		case WITH extends FTokenKind("with", FTokenTag.DEFAULT)
 		case YIELD extends FTokenKind("yield", FTokenTag.DEFAULT)
-
-		case LONGLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case FLOATLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case INTLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case DOUBLELITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case CHARLITERAL extends FTokenKind(null, FTokenTag.NUMERIC)
-		case STRINGLITERAL extends FTokenKind(null, FTokenTag.STRING)
-		case BOOLEANLITERAL extends FTokenKind(null, FTokenTag.NAMED)
-		case ID extends FTokenKind(null, FTokenTag.NAMED)
-
-		case EOF extends FTokenKind(null, FTokenTag.DEFAULT)
-		case ERROR extends FTokenKind(null, FTokenTag.DEFAULT)
-
 		case PUBLIC extends FTokenKind("public", FTokenTag.DEFAULT)
 		case SYNCHRONIZED extends FTokenKind("synchronized", FTokenTag.DEFAULT)
-
 		case THROWS extends FTokenKind("throws", FTokenTag.DEFAULT)
 		case TRANSIENT extends FTokenKind("transient", FTokenTag.DEFAULT)
 		case VOLATILE extends FTokenKind("volatile", FTokenTag.DEFAULT)
@@ -80,32 +79,36 @@ object FToken {
 		case SEMI extends FTokenKind(";", FTokenTag.DEFAULT)
 		case COMMA extends FTokenKind(",", FTokenTag.DEFAULT)
 		case DOT extends FTokenKind(".", FTokenTag.DEFAULT)
-//		case ELLIPSIS extends FTokenKind("...", FTokenTag.DEFAULT)
-//		case GT extends FTokenKind(">", FTokenTag.DEFAULT)
-//		case LT extends FTokenKind("<", FTokenTag.DEFAULT)
-//		case BANG extends FTokenKind("!", FTokenTag.DEFAULT)
-//		case TILDE extends FTokenKind("~", FTokenTag.DEFAULT)
 
 
 		case UNDERSCORE extends FTokenKind("_", FTokenTag.DEFAULT)
-		case COLON extends FTokenKind(":", FTokenTag.DEFAULT)
-		case EQ extends FTokenKind("=", FTokenTag.DEFAULT)
 		case FAT_ARROW extends FTokenKind("=>", FTokenTag.DEFAULT)
 		case LEFT_ARROW extends FTokenKind("<-", FTokenTag.DEFAULT)
 
 		case UPPER_BOUND extends FTokenKind("<:", FTokenTag.DEFAULT)
 		case LESS_PERCENT extends FTokenKind("<%", FTokenTag.DEFAULT)
 		case LOWER_BOUND extends FTokenKind(">:", FTokenTag.DEFAULT)
-		case POUND extends FTokenKind("#", FTokenTag.DEFAULT)
-		case AT extends FTokenKind("@", FTokenTag.DEFAULT)
+	}
 
-//		case AMP extends FTokenKind("&", FTokenTag.DEFAULT)
-//		case PIPE extends FTokenKind("|", FTokenTag.DEFAULT)
-//		case PLUS extends FTokenKind("+", FTokenTag.DEFAULT)
-//		case SUB extends FTokenKind("-", FTokenTag.DEFAULT)
-//		case STAR extends FTokenKind("*", FTokenTag.DEFAULT)
-//		case CARET extends FTokenKind("^", FTokenTag.DEFAULT)
-//		case PERCENT extends FTokenKind("%", FTokenTag.DEFAULT)
+	enum OpChar(val c: Char) {
+		case BANG  extends OpChar('!')
+		case POUND extends OpChar ('#')
+		case PERCENT extends OpChar('%')
+		case AMP extends OpChar('&')
+		case STAR extends OpChar('*')
+		case PLUS extends OpChar('+')
+		case SUB extends OpChar('-')
+		case FSLASH extends OpChar('/')
+		case COLON extends OpChar(':')
+		case LT extends OpChar('<')
+		case EQ extends OpChar('=')
+		case GT extends OpChar('>')
+		case QMARK extends OpChar('?')
+		case AT extends OpChar('@')
+		case BSLASH extends OpChar('\\')
+		case CARET extends OpChar('^')
+		case PIPE extends OpChar('|')
+		case TILDE extends OpChar('~')
 	}
 
 	private lazy val tokens = {
