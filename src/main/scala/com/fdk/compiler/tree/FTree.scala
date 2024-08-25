@@ -88,7 +88,12 @@ class FGuard extends FTree
 class FPattern1 extends FTree
 class FPattern2 extends FTree
 class FPattern3 extends FTree
-class FSimplePattern extends FTree
+class FSimplePattern extends FTree {
+	var next: FSimplePattern = null
+}
+class UnderScorePattern extends FSimplePattern
+class LiteralPattern(val literal: FLiteral) extends FSimplePattern
+class StableIdPattern(val sid: FStableId) extends FSimplePattern
 class FPatterns extends FTree
 class FPattern extends FTree
 //class FTypeParamClause(val vtps: List[FVariantTypeParam]) extends FTree

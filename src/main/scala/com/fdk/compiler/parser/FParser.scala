@@ -580,8 +580,13 @@ class FParser(lexer: IFLexer) {
 		null
 	}
 
-	def simplePattern(): FTree = {
-		if (isToken(UNDERSCORE) || literal()) {
+	def simplePattern(): FSimplePattern = {
+		if(isToken(UNDERSCORE)){
+			next()
+			return UnderScorePattern()
+		}
+		val l = literal()
+		if(l != null) {
 			next()
 			return FTree()
 		}
