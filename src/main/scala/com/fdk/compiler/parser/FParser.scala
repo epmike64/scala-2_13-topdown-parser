@@ -73,6 +73,13 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
+	def acceptOpCharID(op: FOpChar): Unit = {
+		if (op.equalsTk(token)) next()
+		else {
+			throw new IllegalArgumentException(s"Expected token ID, && opChar=$op but got ${token.kind} && ${token.name}")
+		}
+	}
+
 	def acceptOneOf(kinds: FTokenKind*): Unit = {
 		if (kinds.contains(token.kind)) next()
 		else {
@@ -86,6 +93,23 @@ class FParser(lexer: IFLexer) {
 		kinds.contains(lookAhead(n).kind)
 	}
 
+	def isTkLaOneOfOpCharID(n: Int, ops: FOpChar*): Boolean = {
+		val laTk = lookAhead(n)
+		if(laTk.kind == ID) {
+			for(o <- ops){
+				if(o.opCh.toString.equals(laTk.name)) return true
+			}
+		}
+		false
+	}
+
+	def isTkLaOpCharID(n: Int, op: FOpChar): Boolean = {
+		if (op.equalsTk(lookAhead(n))) {
+			return true
+		} 
+		false
+	}
+
 	def isTokenPrefix(prefix: FTokenKind*): Boolean = {
 		for (i <- 0 until prefix.length) {
 			val t = lookAhead(i)
@@ -96,14 +120,15 @@ class FParser(lexer: IFLexer) {
 		true
 	}
 
-	def isOpCharID(opChar: FOpChar): Boolean = {
+	def isTkOpCharID(opChar: FOpChar): Boolean = {
 		token.kind == ID && opChar.opCh.toString.equals(token.name) 
 	}
 
-	def isOpCharIDOneOf(opChars: FOpChar*): Boolean = {
-		if(token.kind != ID) return false
-		for(o <- opChars){
-			if(o.opCh.toString.equals(token.name)) return true
+	def isTkOneOfOpCharID(ops: FOpChar*): Boolean = {
+		if(token.kind == ID) {
+			for(o <- ops){
+				if(o.opCh.toString.equals(token.name)) return true
+			}
 		}
 		false
 	}
@@ -545,7 +570,7 @@ class FParser(lexer: IFLexer) {
 		if (p1 != null) {
 			val defs = ArrayBuffer[FPattern1]()
 			defs.append(p1)
-			while (isOpCharID(PIPE)) { //PIPE
+			while (isTkOpCharID(PIPE)) { //PIPE
 				next()
 				defs.append(pattern1())
 			}
@@ -568,34 +593,84 @@ class FParser(lexer: IFLexer) {
 		}
 	}
 
-	def simplePatternRest(): FTree = {
-		if (isToken(LPAREN)) {
-			next()
-			if (token.kind != RPAREN) {
-				patterns()
-			}
-			accept(RPAREN)
-			return FTree()
-		}
-		null
-	}
+
 
 	def simplePattern(): FSimplePattern = {
 		if(isToken(UNDERSCORE)){
 			next()
 			return UnderScorePattern()
 		}
-		val l = literal()
-		if(l != null) {
-			next()
-			return FTree()
+		var p:FTree = literal()
+		if(p != null) {
+			return LiteralPattern(p)
 		}
-		if (stableId()) {
+
+		p = stableId()
+		if (p != null) {
+			val pat = StableIdPattern(p)
 			simplePatternRest()
 			return FTree()
 		}
-		simplePatternRest()
+		simplePattern5()
 	}
+
+	def simplePattern34(): FSimplePattern = {
+		if(isToken(LPAREN)){
+			next()
+			if(isToken(RPAREN)){
+				next()
+				return null
+			}
+			val pats = patterns()
+			if(pats != null){
+				accept(COMMA)
+			}
+			val idAt = null
+			if(isToken(ID) && isTkLaOpCharID(1, O_AT)){
+				val idAt = ident()
+				next()
+			}
+			accept(UNDERSCORE)
+			accept(O_STAR)
+			accept(UNDERSCORE)
+			
+
+			val pats = patterns()
+			if(pats == null){
+				accept(RPAREN)
+				return null
+			}
+			if(isToken(COMMA)){
+				next()
+			}
+
+		}
+		null
+	}
+
+	def simplePattern5(): FSimplePattern = {
+		if(isToken(LPAREN)){
+			next()
+			if(!isToken(RPAREN)){
+				val pats = patterns()
+				accept(RPAREN)
+				return pats
+			}
+			return null
+		}
+	}
+
+//	def simplePatternRest(): FTree = {
+//		if (isToken(LPAREN)) {
+//			next()
+//			if (token.kind != RPAREN) {
+//				patterns()
+//			}
+//			accept(RPAREN)
+//			return FTree()
+//		}
+//		null
+//	}
 
 	def guard(): FTree = {
 		if (isToken(IF)) {
@@ -1584,7 +1659,7 @@ class FParser(lexer: IFLexer) {
 	}
 
 	def literal(): FLiteral = {
-		if (isOpCharID(MINUS)) {
+		if (isTkOpCharID(MINUS)) {
 			if(isTokenLaOneOf(1, INTLITERAL)){
 				skip(2)
 				val v = - (NumericToken(token)).value
@@ -1599,31 +1674,37 @@ class FParser(lexer: IFLexer) {
 		}
 		
 		if(isToken(INTLITERAL)){
+			next()
 			val v = (NumericToken(token)).value
 			return FIntLit(v)
 		}
 		
 		if(isToken(FLOATLITERAL)){
+			next()
 			val v = (NumericToken(token)).value
 			return FFloatLit(v)
 		}
 		
 		if(isToken(CHARLITERAL)){
+			next()
 			val v = (NumericToken(token)).value
 			return FCharLit(v)
 		}
 		
 		if (isToken(STRINGLITERAL)) {
+			next()
 			val v = (StringToken(token)).stringVal
 			return FLiteral(token.kind, v)
 		}
 		
 		if(isToken(BOOLEANLITERAL)){
+			next()
 			val v = token.name.toBoolean
 			return FLiteral(token.kind, v)
 		}
 		
 		if(isToken(NULL)){
+			next()
 			return FLiteral(token.kind, null)
 		}
 		//Symbol not implemented

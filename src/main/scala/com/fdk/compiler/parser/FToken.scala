@@ -88,24 +88,29 @@ object FToken {
 	}
 
 	enum FOpChar(val opCh: Char) {
-		case BANG  extends FOpChar('!')
-		case POUND extends FOpChar ('#')
-		case PERCENT extends FOpChar('%')
-		case AMP extends FOpChar('&')
-		case STAR extends FOpChar('*')
-		case PLUS extends FOpChar('+')
-		case MINUS extends FOpChar('-')
-		case FSLASH extends FOpChar('/')
-		case COLON extends FOpChar(':')
-		case LT extends FOpChar('<')
-		case EQ extends FOpChar('=')
-		case GT extends FOpChar('>')
-		case QMARK extends FOpChar('?')
-		case AT extends FOpChar('@')
-		case BSLASH extends FOpChar('\\')
-		case CARET extends FOpChar('^')
-		case PIPE extends FOpChar('|')
-		case TILDE extends FOpChar('~')
+
+		def equalsTk(t: FToken): Boolean = {
+			t.kind == FTokenKind.ID && opCh.toString.equals(t.name)
+		}
+
+		case O_BANG  extends FOpChar('!')
+		case O_POUND extends FOpChar ('#')
+		case O_PERCENT extends FOpChar('%')
+		case O_AMP extends FOpChar('&')
+		case O_STAR extends FOpChar('*')
+		case O_PLUS extends FOpChar('+')
+		case O_MINUS extends FOpChar('-')
+		case O_FSLASH extends FOpChar('/')
+		case O_COLON extends FOpChar(':')
+		case O_LT extends FOpChar('<')
+		case O_EQ extends FOpChar('=')
+		case O_GT extends FOpChar('>')
+		case O_QMARK extends FOpChar('?')
+		case O_AT extends FOpChar('@')
+		case O_BSLASH extends FOpChar('\\')
+		case O_CARET extends FOpChar('^')
+		case O_PIPE extends FOpChar('|')
+		case O_TILDE extends FOpChar('~')
 	}
 
 	private lazy val tokens = {
